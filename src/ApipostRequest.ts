@@ -19,7 +19,7 @@ const EdgeGridAuth = require('akamai-edgegrid/src/auth');
 const ntlm = require('httpntlm').ntlm;
 const crypto = require('crypto');
 const OAuth = require('oauth-1.0a');
-const pmEventUtil = require('pm-event-util');
+// const pmEventUtil = require('pm-event-util');
 
 
 // Apipost 发送模块
@@ -36,7 +36,7 @@ class ApipostRequest {
     jsonschema: any;
     target_id: any;
     // 构造函数
-    constructor(opts: any) {
+    constructor(opts?: any) {
         if (!opts) {
             opts = {};
         }
@@ -67,17 +67,17 @@ class ApipostRequest {
     // 结果转换函数
     ConvertResult(status: string, message: string, data?: any) {
 
-        if (status === 'error') {
-            console.error(message);
-        }
+        // if (status === 'error') {
+        //     console.error(message);
+        // }
 
-        (new pmEventUtil).send('SendResponseEventUtil', {
-            status,
-            message,
-            data
-        }, function () {
-            // console.log(err)
-        });
+        // (new pmEventUtil).send('SendResponseEventUtil', {
+        //     status,
+        //     message,
+        //     data
+        // }, function () {
+        //     // console.log(err)
+        // });
 
         return {
             status,
@@ -598,87 +598,86 @@ class ApipostRequest {
 
     // 发送
     request(target: any, extra_headers = {}, extra_opts = {}) {
-
-        // // 配置项
-        // this.https = opts.https ?? { // 证书相关
-        //     "rejectUnauthorized": -1, // 忽略错误证书 1 -1
-        //     "certificateAuthority":'', // ca证书地址
-        //     "certificate": '', // 客户端证书地址
-        //     "key":'', //客户端证书私钥文件地址
-        //     "pfx":'', // pfx 证书地址
-        //     "passphrase": '' // 私钥密码
-        // };
-        // this.proxy = opts.proxy ?? {};
-        // this.proxyAuth = opts.proxyAuth ?? 'username:password';
-
-        const that = this;
-        const Validator = require('jsonschema').validate;
-        that.requstloop++;
-
-        if (!Validator(target, that.jsonschema).valid) {
-            that.ConvertResult('error', '错误的JSON数据格式');
-        } else {
-
-            if (target.request.auth.type == 'ntlm') {
-                Object.assign(extra_opts, { forever: true });
-            }
-            // 获取发送参数
-            let options = {
-                // 拓展部分(固定) +complated
-                "encoding": null, // 响应结果统一为 Buffer
-                "verbose": !0, // 响应包含更多底层信息，如响应网络请求信息等
-                "time": !0, // 响应包含时间信息，此项 和 verbose 会有部分功能重叠
-                "followRedirect": !1,
-                // "followAllRedirects":!0,
-                // "maxRedirects":15,
-                "timeout": that.timeout, // 请求超时时间
-                "brotli": !0, // 请求 Brotli 压缩内容编码
-                "gzip": !0, // 请求 gzip 压缩内容编码
-                "useQuerystring": !0,
-                // "allowContentTypeOverride": !0,
-                "agent": false, // 代理
-
-                // 请求URL 相关 +complated
-                "uri": target.url, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
-                // "baseUrl": "https://go.apipost.cn/", // 前置url，可以用此项决定环境前置URL
-
-                // query 相关+complated
-                qs: that.formatQueries(target.request.query.parameter), // 此项会覆盖URL中的已有值
-
-                // "statusMessageEncoding":"utf8",
-
-                // 基本设置 +complated
-                "method": target.method, //请求方式，默认GET
-
-
-                // header头相关 +complated
-                "headers": {
-                    "user-agent": `ApipostRequest/` + that.version + ` (https://www.apipost.cn)`,
-                    ...this.formatRequestHeaders(target.request.header.parameter, target.request.body.mode),
-                    ...this.createAuthHeaders(target),
-                    ...extra_headers
-
-                }, // 请求头, kv 对象格式
-
-                // SSL 证书相关 +complated
-                'strictSSL': !!that.strictSSL, // 布尔值，是否强制要求SSL证书有效 1(true) 强制 !1(false) 非强制
-
-                // body 相关+complated
-                ...this.formatRequestBodys(target),
-
-                // 其他自定义
-                ...extra_opts
-
-            }
-
-            // 发送并返回响应
+        return new Promise((reslove, reject) => {
+            // // 配置项
+            // this.https = opts.https ?? { // 证书相关
+            //     "rejectUnauthorized": -1, // 忽略错误证书 1 -1
+            //     "certificateAuthority":'', // ca证书地址
+            //     "certificate": '', // 客户端证书地址
+            //     "key":'', //客户端证书私钥文件地址
+            //     "pfx":'', // pfx 证书地址
+            //     "passphrase": '' // 私钥密码
+            // };
+            // this.proxy = opts.proxy ?? {};
+            // this.proxyAuth = opts.proxyAuth ?? 'username:password';
             try {
-                const r = request(options, function (error: any, response: any, body: any) {
-                    if (error) {
-                        that.ConvertResult('error', error.toString());
-                    } else {
-                        (async () => {
-                            that.ConvertResult('success', 'success', await that.formatResponseData(error, response, body))
+                const that = this;
+                const Validator = require('jsonschema').validate;
+                that.requstloop++;
+
+                if (!Validator(target, that.jsonschema).valid) {
+                    reject(that.ConvertResult('error', '错误的JSON数据格式'));
+                } else {
+
+                    if (target.request.auth.type == 'ntlm') {
+                        Object.assign(extra_opts, { forever: true });
+                    }
+                    // 获取发送参数
+                    let options = {
+                        // 拓展部分(固定) +complated
+                        "encoding": null, // 响应结果统一为 Buffer
+                        "verbose": !0, // 响应包含更多底层信息，如响应网络请求信息等
+                        "time": !0, // 响应包含时间信息，此项 和 verbose 会有部分功能重叠
+                        "followRedirect": !1,
+                        // "followAllRedirects":!0,
+                        // "maxRedirects":15,
+                        "timeout": that.timeout, // 请求超时时间
+                        "brotli": !0, // 请求 Brotli 压缩内容编码
+                        "gzip": !0, // 请求 gzip 压缩内容编码
+                        "useQuerystring": !0,
+                        // "allowContentTypeOverride": !0,
+                        "agent": false, // 代理
+
+                        // 请求URL 相关 +complated
+                        "uri": target.url, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
+                        // "baseUrl": "https://go.apipost.cn/", // 前置url，可以用此项决定环境前置URL
+
+                        // query 相关+complated
+                        qs: that.formatQueries(target.request.query.parameter), // 此项会覆盖URL中的已有值
+
+                        // "statusMessageEncoding":"utf8",
+
+                        // 基本设置 +complated
+                        "method": target.method, //请求方式，默认GET
+
+
+                        // header头相关 +complated
+                        "headers": {
+                            "user-agent": `ApipostRequest/` + that.version + ` (https://www.apipost.cn)`,
+                            ...this.formatRequestHeaders(target.request.header.parameter, target.request.body.mode),
+                            ...this.createAuthHeaders(target),
+                            ...extra_headers
+
+                        }, // 请求头, kv 对象格式
+
+                        // SSL 证书相关 +complated
+                        'strictSSL': !!that.strictSSL, // 布尔值，是否强制要求SSL证书有效 1(true) 强制 !1(false) 非强制
+
+                        // body 相关+complated
+                        ...this.formatRequestBodys(target),
+
+                        // 其他自定义
+                        ...extra_opts
+
+                    }
+
+                    // 发送并返回响应
+                    const r = request(options, async function (error: any, response: any, body: any) {
+                        if (error) {
+                            reject(that.ConvertResult('error', error.toString()));
+                        } else {
+                            let result = await that.formatResponseData(error, response, body)
+                            reslove(that.ConvertResult('success', 'success', result));
                             // console.log(response);
 
                             // 重定向的情况递归
@@ -704,17 +703,17 @@ class ApipostRequest {
                                     }
                                 }
                             }
-                        })();
-                    }
-                });
+                        }
+                    });
 
-                if (target.request.body.mode === 'form-data') {
-                    that.formatFormDataBodys(r.form(), target.request.body.parameter);
+                    if (target.request.body.mode === 'form-data') {
+                        that.formatFormDataBodys(r.form(), target.request.body.parameter);
+                    }
                 }
             } catch (e) {
-                that.ConvertResult('error', String(e));
+                reject(this.ConvertResult('error', String(e)))
             }
-        }
+        })
     }
 }
 

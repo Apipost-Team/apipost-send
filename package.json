@@ -30,6 +30,7 @@
     "is-svg": "^4.3.2",
     "js-base64": "^3.7.2",
     "json5": "^2.2.1",
+    "jsonschema": "^1.4.1",
     "lodash": "^4.17.21",
     "oauth-1.0a": "^2.2.6",
     "pm-event-util": "^1.0.2",
@@ -90,5 +91,10 @@
   },
   "author": "",
   "license": "MIT",
-  "keywords": []
+  "keywords": [
+    "apipost",
+    "apipost-send",
+    "http",
+    "https"
+  ]
 }
