@@ -611,6 +611,7 @@ class ApipostRequest {
             // this.proxy = opts.proxy ?? {};
             // this.proxyAuth = opts.proxyAuth ?? 'username:password';
             try {
+                this.target_id = target.target_id;
                 const that = this;
                 const Validator = require('jsonschema').validate;
                 that.requstloop++;
