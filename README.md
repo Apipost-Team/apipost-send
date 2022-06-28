@@ -17,6 +17,7 @@ apiPostSend.request(apiPostApiJson).then((data)=>{
 }).catch(err=>{
   console.log('error',err);
 });
+```
 
 ## Options type:Object
 
