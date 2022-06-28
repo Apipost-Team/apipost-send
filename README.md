@@ -30,6 +30,7 @@ apiPostSend.request(apiPostApiJson).then((data)=>{
 | proxyAuth | string | username:password | 代理账号密码 |
 | https | Object | {} | 证书相关 |
 
+```js
 https 默认
 { 
   "rejectUnauthorized": -1, // 忽略错误证书 1 -1
@@ -39,6 +40,7 @@ https 默认
   "pfx": '', // pfx 证书地址
   "passphrase": '' // 私钥密码
 }
+```
 
 # 开源协议
 
