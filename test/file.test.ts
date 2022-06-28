@@ -226,11 +226,11 @@ describe('works', async () => {
 //         }
 //     }
 // }
-//   await apipostSend.request(target).then((data)=>{
-//     console.log("success",data);
-//   }).catch(err=>{
-//     console.log('error',err);
-//   });
+  await apipostSend.request(target).then((data)=>{
+    console.log("success",data);
+  }).catch(err=>{
+    console.log('error',err);
+  });
 
   it('转换成完整类型', () => {
     expect('success').toBe(`success`);

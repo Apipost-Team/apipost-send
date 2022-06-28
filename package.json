@@ -1,6 +1,6 @@
 {
   "name": "apipost-send",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "apipost-send",
   "main": "dist/index.js",
   "files": [
@@ -38,6 +38,7 @@
     "querystring": "^0.2.1",
     "rollup": "^2.74.1",
     "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-copy": "^3.4.0",
     "rollup-plugin-dts": "^4.2.2",
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript": "^1.0.1",

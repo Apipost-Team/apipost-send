@@ -1,6 +1,7 @@
 import typescript from 'rollup-plugin-typescript';
 import commonjs from 'rollup-plugin-commonjs'
 import dts from "rollup-plugin-dts";
+import copy from 'rollup-plugin-copy';
 
 export default [{
   name: 'apipostSampleModule',
@@ -13,6 +14,11 @@ export default [{
   plugins: [
     typescript(),
     commonjs(),
+    copy({
+      targets: [
+        { src: 'src/apiSchema.json', dest: 'dist/' },
+      ]
+    })
   ]
 },
 {
