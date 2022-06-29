@@ -60,7 +60,7 @@ class ApipostRequest {
         this.proxyAuth = opts.proxyAuth ?? 'username:password';
         this.target_id = opts.target_id;
         // 基本信息
-        this.version = '7.0.3';
+        this.version = '0.0.5';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
