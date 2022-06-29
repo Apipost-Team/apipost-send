@@ -448,6 +448,94 @@ class ApipostRequest {
         return _body;
     }
 
+    // 格式化 请求Body 参数（用于脚本使用）
+    formatDisplayRequestBodys(target: any) {
+        let _body = {
+            'request_bodys': {},
+            'raw': {
+                'mode': 'none'
+            }
+        };
+
+        let arr = _.cloneDeep(target.request.body.parameter);
+
+        switch (target.request.body.mode) {
+            case "none":
+                _body = {
+                    'request_bodys': '',
+                    'raw': {
+                        'mode': 'none'
+                    }
+                }
+                break;
+            case "form-data":
+                if (arr instanceof Array) {
+                    let _raw = [];
+                    arr.forEach(function (item) {
+                        if (parseInt(item.is_checked) === 1) {
+                            _body.request_bodys[item.key] = item.value;
+
+                            if (item.type === 'File') {
+                                _raw.push({
+                                    key: item.key,
+                                    type: 'file',
+                                    src: item.value
+                                });
+                            } else {
+                                _raw.push({
+                                    key: item.key,
+                                    type: "text",
+                                    value: item.value
+                                });
+                            }
+                        }
+                    })
+
+                    _body.raw = {
+                        'mode': 'formdata',
+                        'formdata': _raw
+                    }
+                }
+                break;
+            case "urlencoded":
+                if (arr instanceof Array) {
+                    let _raw = [];
+                    arr.forEach(function (item) {
+                        if (parseInt(item.is_checked) === 1) {
+                            _body.request_bodys[item.key] = item.value;
+
+                            _raw.push({
+                                key: item.key,
+                                value: item.value
+                            });
+                        }
+                    })
+
+                    _body.raw = {
+                        'mode': 'urlencoded',
+                        'urlencoded': _raw
+                    }
+                }
+                break;
+            default:
+                _body = {
+                    'request_bodys': this.formatRawJsonBodys(target.request.body.raw),
+                    'raw': {
+                        'mode': 'raw',
+                        'raw': this.formatRawJsonBodys(target.request.body.raw),
+                        'options': {
+                            'raw': {
+                                'language': target.request.body.mode
+                            }
+                        }
+                    }
+                }
+                break;
+        }
+
+        return _body;
+    }
+
     // 处理 响应参数
     async formatResponseData(error: any, response: any, body: any) {
         let res: any = {
@@ -651,6 +739,8 @@ class ApipostRequest {
                         // 基本设置 +complated
                         "method": target.method, //请求方式，默认GET
 
+                        // 请求Body（仅用于获取）
+                        "_requestBody": this.formatDisplayRequestBodys(target),
 
                         // header头相关 +complated
                         "headers": {
@@ -677,9 +767,41 @@ class ApipostRequest {
                         if (error) {
                             reject(that.ConvertResult('error', error.toString()));
                         } else {
-                            let result = await that.formatResponseData(error, response, body)
-                            reslove(that.ConvertResult('success', 'success', result));
-                            // console.log(response);
+                            let _headers = [];
+
+                            if (_.isObject(response.request.headers)) {
+                                for (let _key in response.request.headers) {
+                                    _headers.push({
+                                        key: _key,
+                                        value: response.request.headers[_key]
+                                    })
+                                }
+                            }
+
+                            let _request = {
+                                header: _headers
+                            };
+
+                            if (_.isObject(response.request)) {
+                                _request = {
+                                    url: response.request.href,
+                                    uri: _.cloneDeep(JSON5.parse(JSON5.stringify(response.request.uri))),
+                                    method: response.request.method,
+                                    timeout: response.request.timeout,
+                                    // qs:response.request.qs,
+                                    contentType: response.request.headers['content-type'] ?? 'none',
+                                    header: _headers,
+                                    proxy: response.request.proxy,
+                                    request_headers: response.request.headers,
+                                    request_bodys: response.request['_requestBody'].request_bodys,
+                                    body: response.request['_requestBody'].raw
+                                };
+                            }
+
+                            that.ConvertResult('success', 'success', {
+                                request: _request,
+                                response: await that.formatResponseData(error, response, body)
+                            })
 
                             // 重定向的情况递归
                             if (that.followRedirect && that.requstloop < that.maxrequstloop) {
