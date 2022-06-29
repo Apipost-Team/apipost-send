@@ -798,10 +798,10 @@ class ApipostRequest {
                                 };
                             }
 
-                            that.ConvertResult('success', 'success', {
+                            reslove(that.ConvertResult('success', 'success', {
                                 request: _request,
                                 response: await that.formatResponseData(error, response, body)
-                            })
+                            }))
 
                             // 重定向的情况递归
                             if (that.followRedirect && that.requstloop < that.maxrequstloop) {
