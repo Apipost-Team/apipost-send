@@ -450,7 +450,7 @@ class ApipostRequest {
 
     // 格式化 请求Body 参数（用于脚本使用）
     formatDisplayRequestBodys(target: any) {
-        let _body = {
+        let _body:any = {
             'request_bodys': {},
             'raw': {
                 'mode': 'none'
@@ -470,7 +470,7 @@ class ApipostRequest {
                 break;
             case "form-data":
                 if (arr instanceof Array) {
-                    let _raw = [];
+                    let _raw : Array<any>= [];
                     arr.forEach(function (item) {
                         if (parseInt(item.is_checked) === 1) {
                             _body.request_bodys[item.key] = item.value;
@@ -499,7 +499,7 @@ class ApipostRequest {
                 break;
             case "urlencoded":
                 if (arr instanceof Array) {
-                    let _raw = [];
+                    let _raw : Array<any>= [];
                     arr.forEach(function (item) {
                         if (parseInt(item.is_checked) === 1) {
                             _body.request_bodys[item.key] = item.value;
@@ -778,7 +778,7 @@ class ApipostRequest {
                                 }
                             }
 
-                            let _request = {
+                            let _request: any = {
                                 header: _headers
                             };
 
