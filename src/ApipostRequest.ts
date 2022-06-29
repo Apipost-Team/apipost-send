@@ -60,7 +60,7 @@ class ApipostRequest {
         this.proxyAuth = opts.proxyAuth ?? 'username:password';
         this.target_id = opts.target_id;
         // 基本信息
-        this.version = '0.0.5';
+        this.version = '0.0.6';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -648,7 +648,7 @@ class ApipostRequest {
             res.resHeaders = res.headers = response.headers;
 
             if (response.headers['set-cookie'] instanceof Array) {
-                res.resCookies = setCookie.parse(response.headers['set-cookie']);
+                res.resCookies = res.rawCookies = setCookie.parse(response.headers['set-cookie']);
 
                 for (let c in res.resCookies) {
                     res.cookies[res.resCookies[c].name] = res.resCookies[c].value;
