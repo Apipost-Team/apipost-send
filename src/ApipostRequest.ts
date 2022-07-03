@@ -37,6 +37,7 @@ class ApipostRequest {
     version: string;
     jsonschema: any;
     target_id: any;
+    isCloud: number;
     // 构造函数
     constructor(opts?: any) {
         if (!opts) {
@@ -375,7 +376,7 @@ class ApipostRequest {
     }
 
     getBase64Mime(dataurl: string) {//将base64转换为文件
-        let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+        let arr: any = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
 
         if (mime) {
             let mimeType = new MIMEType(mime);
@@ -639,7 +640,7 @@ class ApipostRequest {
         if (isSvg(res.rawBody)) {
             res.resMime = { ext: "svg", mime: "image/svg+xml" };
             res.fitForShow = "Image";
-            res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + target.target_id + '.svg');
+            res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.svg');
             fs.writeFileSync(res.rawBody, body);
 
             // 拼装 raw
@@ -650,8 +651,8 @@ class ApipostRequest {
             if (!resMime) {
                 let _headers: any = _.cloneDeep(response.headers);
 
-                if (_headers && _.mapKeys(_headers, function (v, k) { return k.toLowerCase() }).hasOwnProperty('content-type')) {
-                    let mimeType: any = new MIMEType(_.mapKeys(_headers, function (v, k) { return k.toLowerCase() })['content-type']);
+                if (_headers && _.mapKeys(_headers, function (v: any, k: any) { return k.toLowerCase() }).hasOwnProperty('content-type')) {
+                    let mimeType: any = new MIMEType(_.mapKeys(_headers, function (v: any, k: any) { return k.toLowerCase() })['content-type']);
                     res.resMime = { ext: mimeType['_subtype'], mime: mimeType.essence };
                 }
 
@@ -685,7 +686,7 @@ class ApipostRequest {
                 res.raw.type = res.resMime.ext
                 res.raw.responseText = '';
 
-                res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + target.target_id + '.' + resMime.ext);
+                res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
                 fs.writeFileSync(res.rawBody, body);
             }
         }
