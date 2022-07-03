@@ -19,6 +19,8 @@ const EdgeGridAuth = require('akamai-edgegrid/src/auth');
 const ntlm = require('httpntlm').ntlm;
 const crypto = require('crypto');
 const OAuth = require('oauth-1.0a');
+const MIMEType = require("whatwg-mimetype");
+const isBase64 = require('is-base64');
 // const pmEventUtil = require('pm-event-util');
 
 
@@ -59,8 +61,10 @@ class ApipostRequest {
         this.proxy = opts.proxy ?? {};
         this.proxyAuth = opts.proxyAuth ?? 'username:password';
         this.target_id = opts.target_id;
+        this.isCloud = opts.hasOwnProperty('isCloud') ? (parseInt(opts.isCloud) > 0 ? 1 : -1) : -1; // update 0703
+
         // 基本信息
-        this.version = '0.0.5';
+        this.version = '0.0.7';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -370,8 +374,21 @@ class ApipostRequest {
         return bodys;
     }
 
+    getBase64Mime(dataurl: string) {//将base64转换为文件
+        let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+
+        if (mime) {
+            let mimeType = new MIMEType(mime);
+            return { ext: mimeType['_subtype'], mime: mimeType.essence };
+        } else {
+            return null;
+        }
+    }
+
     // 格式化 FormData 参数
     formatFormDataBodys(forms: any, arr: any[]) {
+        let that = this;
+
         if (arr instanceof Array) {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1) {
@@ -382,7 +399,30 @@ class ApipostRequest {
                     }
 
                     if (item.type === 'File') {
-                        forms.append(item.key, fs.createReadStream(item.value), options);
+                        if (isBase64(item.value, { allowMime: true })) { // 云端
+                            let _mime: any = that.getBase64Mime(item.value);
+                            let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(item.value).toString()}`);
+
+                            if (!fs.existsSync(_temp_file)) {
+                                fs.mkdirSync(_temp_file);
+                            }
+
+                            if (item.filename != '') {
+                                _temp_file = path.join(_temp_file, `${item.filename}`);
+                            } else {
+                                _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
+                            }
+
+                            fs.writeFileSync(_temp_file, Buffer.from(item.value.replace(/^data:(.+?);base64,/, ''), 'base64'));
+                            forms.append(item.key, fs.createReadStream(_temp_file), options);
+                            fs.unlink(_temp_file, () => { });
+                        } else { // 本地
+                            try {
+                                if (fs.existsSync(item.value)) {
+                                    forms.append(item.key, fs.createReadStream(item.value), options);
+                                }
+                            } catch (e) { }
+                        }
                     } else {
                         forms.append(item.key, item.value, options);
                     }
@@ -450,7 +490,7 @@ class ApipostRequest {
 
     // 格式化 请求Body 参数（用于脚本使用）
     formatDisplayRequestBodys(target: any) {
-        let _body:any = {
+        let _body: any = {
             'request_bodys': {},
             'raw': {
                 'mode': 'none'
@@ -470,7 +510,7 @@ class ApipostRequest {
                 break;
             case "form-data":
                 if (arr instanceof Array) {
-                    let _raw : Array<any>= [];
+                    let _raw: Array<any> = [];
                     arr.forEach(function (item) {
                         if (parseInt(item.is_checked) === 1) {
                             _body.request_bodys[item.key] = item.value;
@@ -499,7 +539,7 @@ class ApipostRequest {
                 break;
             case "urlencoded":
                 if (arr instanceof Array) {
-                    let _raw : Array<any>= [];
+                    let _raw: Array<any> = [];
                     arr.forEach(function (item) {
                         if (parseInt(item.is_checked) === 1) {
                             _body.request_bodys[item.key] = item.value;
@@ -558,6 +598,7 @@ class ApipostRequest {
             rawCookies: [], // 响应 cookie
             cookies: {}, // 响应 cookie 兼容旧版
             rawBody: "", // 响应体 fitForShow === Monaco 为响应内容，否则为响应文件存储路径
+            base64Body: "", // 响应体的 base64 编码格式 // 0703
             stream: {   // 兼容postman
                 "type": "Buffer",
                 "data": []
@@ -593,52 +634,72 @@ class ApipostRequest {
         res.raw.responseTime = response.elapsedTime; //响应时间（毫秒）
 
         // 响应类型和 内容
-        let resMime = await FileType.fromBuffer(body);
+        let resMime: any = await FileType.fromBuffer(body);
 
-        if (!resMime) {
-            res.fitForShow = "Monaco";
-            res.rawBody = body.toString();
+        if (isSvg(res.rawBody)) {
+            res.resMime = { ext: "svg", mime: "image/svg+xml" };
+            res.fitForShow = "Image";
+            res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + target.target_id + '.svg');
+            fs.writeFileSync(res.rawBody, body);
 
-            if (isSvg(res.rawBody)) {
-                res.fitForShow = "Image";
-                res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.svg');
-                fs.writeFileSync(res.rawBody, body);
+            // 拼装 raw
+            res.raw.type = 'svg'
+            res.raw.responseText = '';
+        } else {
+            //MIMEType
+            if (!resMime) {
+                let _headers: any = _.cloneDeep(response.headers);
 
-                // 拼装 raw
-                res.raw.type = 'svg'
-                res.raw.responseText = '';
-            } else {
+                if (_headers && _.mapKeys(_headers, function (v, k) { return k.toLowerCase() }).hasOwnProperty('content-type')) {
+                    let mimeType: any = new MIMEType(_.mapKeys(_headers, function (v, k) { return k.toLowerCase() })['content-type']);
+                    res.resMime = { ext: mimeType['_subtype'], mime: mimeType.essence };
+                }
+
+                res.fitForShow = "Monaco";
+                res.rawBody = body.toString();
+
                 if (ATools.isJson5(res.rawBody)) {
                     res.json = JSON5.parse(res.rawBody);
                 }
 
                 // 拼装 raw
-                res.raw.type = ATools.isJson(res.rawBody) ? 'json' : ATools.isJsonp(res.rawBody) ? 'jsonp' : 'html'//响应类型（json等）
+                if (res.resMime && res.resMime.ext) {
+                    res.raw.type = res.resMime.ext
+                } else {
+                    res.raw.type = ATools.isJson(res.rawBody) ? 'json' : ATools.isJsonp(res.rawBody) ? 'jsonp' : 'html'//响应类型（json等）
+                }
+
                 res.raw.responseText = res.rawBody;
-            }
-        } else {
-            res.resMime = resMime;
-
-            if (res.resMime.ext === 'pdf') {
-                res.fitForShow = "Pdf";
-            } else if (isImage('test.' + res.resMime.ext)) {
-                res.fitForShow = "Image";
             } else {
-                res.fitForShow = "Other";
+                res.resMime = resMime;
+
+                if (res.resMime.ext === 'pdf') {
+                    res.fitForShow = "Pdf";
+                } else if (isImage('test.' + res.resMime.ext)) {
+                    res.fitForShow = "Image";
+                } else {
+                    res.fitForShow = "Other";
+                }
+
+                // 拼装 raw
+                res.raw.type = res.resMime.ext
+                res.raw.responseText = '';
+
+                res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + target.target_id + '.' + resMime.ext);
+                fs.writeFileSync(res.rawBody, body);
             }
-
-            // 拼装 raw
-            res.raw.type = res.resMime.ext
-            res.raw.responseText = '';
-
-            res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
-            fs.writeFileSync(res.rawBody, body);
         }
 
         let array = [];
 
         for (let i = 0; i < response.body.length; i++) {
             array[i] = response.body[i];
+        }
+
+        if (res.resMime) {
+            res.base64Body = `data:${res.resMime['mime']};base64,${response.body.toString('base64')}`;
+        } else {
+            res.base64Body = `data:text/plain;base64,${response.body.toString('base64')}`;
         }
 
         res.stream.data = array;

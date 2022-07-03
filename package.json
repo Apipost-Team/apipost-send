@@ -1,6 +1,6 @@
 {
   "name": "apipost-send",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "apipost-send",
   "main": "dist/index.js",
   "files": [
@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "test": "jest",
-    "build": "rollup -c rollup.config.js"
+    "build": "npm version patch && rollup -c rollup.config.js"
   },
   "dependencies": {
     "@rollup/plugin-node-resolve": "^13.3.0",
