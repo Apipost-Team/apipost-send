@@ -637,7 +637,7 @@ class ApipostRequest {
         // 响应类型和 内容
         let resMime: any = await FileType.fromBuffer(body);
 
-        if (isSvg(res.rawBody)) {
+        if(isSvg(body.toString())){
             res.resMime = { ext: "svg", mime: "image/svg+xml" };
             res.fitForShow = "Image";
             res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.svg');
