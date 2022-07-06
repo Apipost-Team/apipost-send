@@ -558,6 +558,7 @@ class ApipostRequest {
     // 处理 响应参数
     async formatResponseData(error: any, response: any, body: any) {
         let res: any = {
+            target_id:this.target_id,
             // client:{}, // 请求 client 属性
             // elapsedTime:0, // 请求总时间 （ms）
             responseTime: 0, // 请求总时间（elapsedTime 的别名） （ms）
