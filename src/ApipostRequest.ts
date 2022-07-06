@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const OAuth = require('oauth-1.0a');
 const MIMEType = require("whatwg-mimetype");
 const isBase64 = require('is-base64');
+const ASideTools = require('apipost-inside-tools');
 // const pmEventUtil = require('pm-event-util');
 
 
@@ -71,35 +72,12 @@ class ApipostRequest {
 
     // 结果转换函数
     ConvertResult(status: string, message: string, data?: any) {
-
-        // if (status === 'error') {
-        //     console.error(message);
-        // }
-
-        // (new pmEventUtil).send('SendResponseEventUtil', {
-        //     status,
-        //     message,
-        //     data
-        // }, function () {
-        //     // console.log(err)
-        // });
-
-        return {
-            status,
-            message,
-            data
-        }
+        return ASideTools.ConvertResult(status, message, data)
     }
 
     // 获取缓存目录
     getCachePath() {
-        let cache_path = require('electron').remote.app.getPath('userData');
-
-        if (process.env['LOCALAPPDATA']) {
-            cache_path = process.env['LOCALAPPDATA'];
-        }
-
-        return cache_path;
+        return ASideTools.getCachePath();
     }
 
     // 格式化 query 参数
@@ -637,7 +615,7 @@ class ApipostRequest {
         // 响应类型和 内容
         let resMime: any = await FileType.fromBuffer(body);
 
-        if(isSvg(body.toString())){
+        if (isSvg(body.toString())) {
             res.resMime = { ext: "svg", mime: "image/svg+xml" };
             res.fitForShow = "Image";
             res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.svg');
