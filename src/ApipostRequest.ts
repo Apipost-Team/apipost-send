@@ -558,6 +558,7 @@ class ApipostRequest {
     // 处理 响应参数
     async formatResponseData(error: any, response: any, body: any) {
         let res: any = {
+            target_id:this.target_id,
             // client:{}, // 请求 client 属性
             // elapsedTime:0, // 请求总时间 （ms）
             responseTime: 0, // 请求总时间（elapsedTime 的别名） （ms）
@@ -726,6 +727,7 @@ class ApipostRequest {
 
     // 发送
     request(target: any, extra_headers = {}, extra_opts = {}) {
+        this.target_id = target.target_id;
         return new Promise((reslove, reject) => {
             // // 配置项
             // this.https = opts.https ?? { // 证书相关
@@ -739,7 +741,6 @@ class ApipostRequest {
             // this.proxy = opts.proxy ?? {};
             // this.proxyAuth = opts.proxyAuth ?? 'username:password';
             try {
-                this.target_id = target.target_id;
                 const that = this;
                 const Validator = require('jsonschema').validate;
                 that.requstloop++;

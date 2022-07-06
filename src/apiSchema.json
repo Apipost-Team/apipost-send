@@ -66,10 +66,7 @@
             }
           },
           "required": [
-            "type",
-            "kv",
-            "bearer",
-            "basic"
+            "type"
           ]
         },
         "body": {
@@ -79,41 +76,7 @@
               "type": "string"
             },
             "parameter": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "is_checked": {
-                      "type": "string"
-                    },
-                    "type": {
-                      "type": "string"
-                    },
-                    "key": {
-                      "type": "string"
-                    },
-                    "value": {
-                      "type": "any"
-                    },
-                    "not_null": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "field_type": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "is_checked",
-                    "type",
-                    "key",
-                    "value"
-                  ]
-                }
-              ]
+              "type": "array"
             },
             "raw": {
               "type": "string"
@@ -129,41 +92,7 @@
           "type": "object",
           "properties": {
             "parameter": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "is_checked": {
-                      "type": "string"
-                    },
-                    "type": {
-                      "type": "string"
-                    },
-                    "key": {
-                      "type": "string"
-                    },
-                    "value": {
-                      "type": "string"
-                    },
-                    "not_null": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "field_type": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "is_checked",
-                    "type",
-                    "key",
-                    "value"
-                  ]
-                }
-              ]
+              "type": "array"
             }
           },
           "required": [
@@ -174,41 +103,7 @@
           "type": "object",
           "properties": {
             "parameter": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "is_checked": {
-                      "type": "string"
-                    },
-                    "type": {
-                      "type": "string"
-                    },
-                    "key": {
-                      "type": "string"
-                    },
-                    "value": {
-                      "type": "string"
-                    },
-                    "not_null": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "field_type": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "is_checked",
-                    "type",
-                    "key",
-                    "value"
-                  ]
-                }
-              ]
+              "type": "array"
             }
           },
           "required": [
