@@ -727,6 +727,7 @@ class ApipostRequest {
 
     // 发送
     request(target: any, extra_headers = {}, extra_opts = {}) {
+        this.target_id = target.target_id;
         return new Promise((reslove, reject) => {
             // // 配置项
             // this.https = opts.https ?? { // 证书相关
@@ -740,7 +741,6 @@ class ApipostRequest {
             // this.proxy = opts.proxy ?? {};
             // this.proxyAuth = opts.proxyAuth ?? 'username:password';
             try {
-                this.target_id = target.target_id;
                 const that = this;
                 const Validator = require('jsonschema').validate;
                 that.requstloop++;
