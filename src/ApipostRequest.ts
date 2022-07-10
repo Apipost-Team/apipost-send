@@ -22,7 +22,7 @@ const OAuth = require('oauth-1.0a');
 const MIMEType = require("whatwg-mimetype");
 const isBase64 = require('is-base64');
 const ASideTools = require('apipost-inside-tools');
-// const pmEventUtil = require('pm-event-util');
+const contentDisposition = require('content-disposition');
 
 
 // Apipost 发送模块
@@ -752,8 +752,17 @@ class ApipostRequest {
         if (response.headers) {
             res.resHeaders = res.headers = response.headers;
 
-            if (response.headers['set-cookie'] instanceof Array) {
-                res.resCookies = setCookie.parse(response.headers['set-cookie']);
+            let lowerHeaders: any = {};
+
+            for (let k in response.headers) {
+                if (_.isString(k)) {
+                    lowerHeaders[k.toLowerCase()] = response.headers[k];
+                }
+            }
+
+            // 响应 cookie
+            if (lowerHeaders['set-cookie'] instanceof Array) {
+                res.resCookies = setCookie.parse(lowerHeaders['set-cookie']);
 
                 for (let c in res.resCookies) {
                     res.cookies[res.resCookies[c].name] = res.resCookies[c].value;
@@ -762,12 +771,29 @@ class ApipostRequest {
 
             res.rawCookies = res.resCookies; // 此参数是为了兼容postman
 
-            if (res.resHeaders.hasOwnProperty('content-length')) {
-                res.responseSize = parseFloat((res.resHeaders['content-length'] / 1024).toFixed(2));
+            if (lowerHeaders.hasOwnProperty('content-length')) {
+                res.responseSize = parseFloat((lowerHeaders['content-length'] / 1024).toFixed(2));
             } else {
                 res.responseSize = parseFloat((body.toString().length / 1024).toFixed(2));
             }
 
+
+            // 响应文件名
+            if (lowerHeaders.hasOwnProperty('content-disposition')) {
+                let disposition: any = contentDisposition.parse(lowerHeaders['content-disposition'])
+
+                if (_.isObject(disposition) && _.isObject(disposition.parameters) && _.isString(disposition.parameters.filename)) {
+                    res.filename = disposition.parameters.filename;
+                }
+            } else {
+                if (res.resMime) {
+                    res.filename = `response_${this.target_id}.${res.resMime.ext}`;
+                } else {
+                    res.filename = `response_${this.target_id}.txt`;
+                }
+            }
+
+            // 响应头
             let header: any = [];
             for (let k in response.headers) {
                 if (response.headers[k] instanceof Array) {
