@@ -69,7 +69,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.11';
+        this.version = '0.0.12';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -723,13 +723,18 @@ class ApipostRequest {
 
                 // 拼装 raw
                 res.raw.type = res.resMime.ext
-                res.raw.responseText = '';
 
-                if (this.isCloud < 1) {
-                    res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
-                    fs.writeFileSync(res.rawBody, body);
-                } else {
-                    res.rawBody = '';
+                if (res.resMime.ext === 'xml'){
+                    res.raw.responseText = res.rawBody = body.toString();
+                }else{
+                    res.raw.responseText = '';
+
+                    if (this.isCloud < 1) {
+                        res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
+                        fs.writeFileSync(res.rawBody, body);
+                    } else {
+                        res.rawBody = '';
+                    }
                 }
             }
         }
