@@ -22,7 +22,7 @@ const OAuth = require('oauth-1.0a');
 const MIMEType = require("whatwg-mimetype");
 const isBase64 = require('is-base64');
 const ASideTools = require('apipost-inside-tools');
-// const pmEventUtil = require('pm-event-util');
+const contentDisposition = require('content-disposition');
 
 
 // Apipost 发送模块
@@ -39,6 +39,8 @@ class ApipostRequest {
     jsonschema: any;
     target_id: any;
     isCloud: number;
+    requestLink: any;
+
     // 构造函数
     constructor(opts?: any) {
         if (!opts) {
@@ -64,9 +66,10 @@ class ApipostRequest {
         this.proxyAuth = opts.proxyAuth ?? 'username:password';
         this.target_id = opts.target_id;
         this.isCloud = opts.hasOwnProperty('isCloud') ? (parseInt(opts.isCloud) > 0 ? 1 : -1) : -1; // update 0703
+        this.requestLink = null;
 
         // 基本信息
-        this.version = '0.1.0';
+        this.version = '0.0.11';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -712,6 +715,8 @@ class ApipostRequest {
                     res.fitForShow = "Pdf";
                 } else if (isImage('test.' + res.resMime.ext)) {
                     res.fitForShow = "Image";
+                } else if (res.resMime.ext === 'xml') {
+                    res.fitForShow = "Monaco";
                 } else {
                     res.fitForShow = "Other";
                 }
@@ -747,8 +752,17 @@ class ApipostRequest {
         if (response.headers) {
             res.resHeaders = res.headers = response.headers;
 
-            if (response.headers['set-cookie'] instanceof Array) {
-                res.resCookies = setCookie.parse(response.headers['set-cookie']);
+            let lowerHeaders: any = {};
+
+            for (let k in response.headers) {
+                if (_.isString(k)) {
+                    lowerHeaders[k.toLowerCase()] = response.headers[k];
+                }
+            }
+
+            // 响应 cookie
+            if (lowerHeaders['set-cookie'] instanceof Array) {
+                res.resCookies = setCookie.parse(lowerHeaders['set-cookie']);
 
                 for (let c in res.resCookies) {
                     res.cookies[res.resCookies[c].name] = res.resCookies[c].value;
@@ -757,12 +771,29 @@ class ApipostRequest {
 
             res.rawCookies = res.resCookies; // 此参数是为了兼容postman
 
-            if (res.resHeaders.hasOwnProperty('content-length')) {
-                res.responseSize = parseFloat((res.resHeaders['content-length'] / 1024).toFixed(2));
+            if (lowerHeaders.hasOwnProperty('content-length')) {
+                res.responseSize = parseFloat((lowerHeaders['content-length'] / 1024).toFixed(2));
             } else {
                 res.responseSize = parseFloat((body.toString().length / 1024).toFixed(2));
             }
 
+
+            // 响应文件名
+            if (lowerHeaders.hasOwnProperty('content-disposition')) {
+                let disposition: any = contentDisposition.parse(lowerHeaders['content-disposition'])
+
+                if (_.isObject(disposition) && _.isObject(disposition.parameters) && _.isString(disposition.parameters.filename)) {
+                    res.filename = disposition.parameters.filename;
+                }
+            } else {
+                if (res.resMime) {
+                    res.filename = `response_${this.target_id}.${res.resMime.ext}`;
+                } else {
+                    res.filename = `response_${this.target_id}.txt`;
+                }
+            }
+
+            // 响应头
             let header: any = [];
             for (let k in response.headers) {
                 if (response.headers[k] instanceof Array) {
@@ -784,6 +815,15 @@ class ApipostRequest {
         }
 
         return res;
+    }
+
+    // 取消发送
+    abort() {
+        try {
+            if (_.isObject(this.requestLink) && _.isFunction(this.requestLink.abort)) {
+                this.requestLink.abort();
+            }
+        } catch (e) { }
     }
 
     // 发送
@@ -865,7 +905,7 @@ class ApipostRequest {
                     }
 
                     // 发送并返回响应
-                    const r = request(options, async function (error: any, response: any, body: any) {
+                    const r = that.requestLink = request(options, async function (error: any, response: any, body: any) {
                         if (error) {
                             reject(that.ConvertResult('error', error.toString()));
                         } else {
