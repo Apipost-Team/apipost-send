@@ -39,6 +39,8 @@ class ApipostRequest {
     jsonschema: any;
     target_id: any;
     isCloud: number;
+    requestLink: any;
+
     // 构造函数
     constructor(opts?: any) {
         if (!opts) {
@@ -64,9 +66,10 @@ class ApipostRequest {
         this.proxyAuth = opts.proxyAuth ?? 'username:password';
         this.target_id = opts.target_id;
         this.isCloud = opts.hasOwnProperty('isCloud') ? (parseInt(opts.isCloud) > 0 ? 1 : -1) : -1; // update 0703
+        this.requestLink = null;
 
         // 基本信息
-        this.version = '0.1.0';
+        this.version = '0.0.11';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -712,6 +715,8 @@ class ApipostRequest {
                     res.fitForShow = "Pdf";
                 } else if (isImage('test.' + res.resMime.ext)) {
                     res.fitForShow = "Image";
+                } else if (res.resMime.ext === 'xml') {
+                    res.fitForShow = "Monaco";
                 } else {
                     res.fitForShow = "Other";
                 }
@@ -784,6 +789,15 @@ class ApipostRequest {
         }
 
         return res;
+    }
+
+    // 取消发送
+    abort() {
+        try {
+            if (_.isObject(this.requestLink) && _.isFunction(this.requestLink.abort)) {
+                this.requestLink.abort();
+            }
+        } catch (e) { }
     }
 
     // 发送
@@ -865,7 +879,7 @@ class ApipostRequest {
                     }
 
                     // 发送并返回响应
-                    const r = request(options, async function (error: any, response: any, body: any) {
+                    const r = that.requestLink = request(options, async function (error: any, response: any, body: any) {
                         if (error) {
                             reject(that.ConvertResult('error', error.toString()));
                         } else {
