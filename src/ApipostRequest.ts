@@ -66,7 +66,7 @@ class ApipostRequest {
         this.isCloud = opts.hasOwnProperty('isCloud') ? (parseInt(opts.isCloud) > 0 ? 1 : -1) : -1; // update 0703
 
         // 基本信息
-        this.version = '0.0.7';
+        this.version = '0.1.0';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -555,14 +555,64 @@ class ApipostRequest {
         return _body;
     }
 
+    // 响应时间点
+    resposneAt() {
+        var time: any = new Date();
+        var h: any = time.getHours();
+        h = h < 10 ? '0' + h : h;
+        var m: any = time.getMinutes();
+        m = m < 10 ? '0' + m : m;
+        var s: any = time.getSeconds();
+        s = s < 10 ? '0' + s : s;
+        return h + ':' + m + ':' + s;
+    }
+
     // 处理 响应参数
     async formatResponseData(error: any, response: any, body: any) {
+        let _agent: string = 'Desktop-Agent';
+
+        if (this.isCloud > 0) {
+            _agent = 'Cloud-Agent';
+        }
+
+        let netWork: any = {
+            agent: _agent,
+            address: {}
+        };
+
+        let client: any = _.isObject(response.client) ? response.client : response.client;
+
+        if (_.isObject(client)) {
+            // localAddress
+            if (_.isString(client.localAddress)) {
+                _.assign(netWork.address, {
+                    local: {
+                        address: client.localAddress,
+                        port: client.localPort
+                    }
+                })
+            }
+
+            // remoteAddress
+            if (_.isString(client.remoteAddress)) {
+                _.assign(netWork.address, {
+                    remote: {
+                        address: client.remoteAddress,
+                        family: client.remoteFamily,
+                        port: client.remotePort
+                    }
+                })
+            }
+        }
+
         let res: any = {
-            target_id:this.target_id,
+            target_id: this.target_id,
             // client:{}, // 请求 client 属性
             // elapsedTime:0, // 请求总时间 （ms）
             responseTime: 0, // 请求总时间（elapsedTime 的别名） （ms）
             responseSize: 0, // 响应体大小（KB）
+            resposneAt: this.resposneAt(), // 请求的时分秒
+            netWork: netWork,
             // statusObj : {
             //     code:200,
             //     message:"OK"
@@ -619,8 +669,13 @@ class ApipostRequest {
         if (isSvg(body.toString())) {
             res.resMime = { ext: "svg", mime: "image/svg+xml" };
             res.fitForShow = "Image";
-            res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.svg');
-            fs.writeFileSync(res.rawBody, body);
+
+            if (this.isCloud < 1) {
+                res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.svg');
+                fs.writeFileSync(res.rawBody, body);
+            } else {
+                res.rawBody = '';
+            }
 
             // 拼装 raw
             res.raw.type = 'svg'
@@ -665,12 +720,16 @@ class ApipostRequest {
                 res.raw.type = res.resMime.ext
                 res.raw.responseText = '';
 
-                res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
-                fs.writeFileSync(res.rawBody, body);
+                if (this.isCloud < 1) {
+                    res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
+                    fs.writeFileSync(res.rawBody, body);
+                } else {
+                    res.rawBody = '';
+                }
             }
         }
 
-        let array = [];
+        let array: any = [];
 
         for (let i = 0; i < response.body.length; i++) {
             array[i] = response.body[i];
@@ -696,13 +755,15 @@ class ApipostRequest {
                 }
             }
 
+            res.rawCookies = res.resCookies; // 此参数是为了兼容postman
+
             if (res.resHeaders.hasOwnProperty('content-length')) {
                 res.responseSize = parseFloat((res.resHeaders['content-length'] / 1024).toFixed(2));
             } else {
                 res.responseSize = parseFloat((body.toString().length / 1024).toFixed(2));
             }
 
-            let header = [];
+            let header: any = [];
             for (let k in response.headers) {
                 if (response.headers[k] instanceof Array) {
                     for (let h of response.headers[k]) {
@@ -808,7 +869,7 @@ class ApipostRequest {
                         if (error) {
                             reject(that.ConvertResult('error', error.toString()));
                         } else {
-                            let _headers = [];
+                            let _headers: any = [];
 
                             if (_.isObject(response.request.headers)) {
                                 for (let _key in response.request.headers) {
