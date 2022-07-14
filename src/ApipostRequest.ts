@@ -1,29 +1,30 @@
-const FileType = require('file-type');
-const setCookie = require('set-cookie-parser');
-const isImage = require('is-image');
-const fs = require('fs');
-const path = require('path');
-const isSvg = require('is-svg');
-const request = require('postman-request');
-const qs = require('querystring');
-const JSON5 = require('json5');
-const ATools = require('apipost-tools');
-const Base64 = require('js-base64');
-const CryptoJS = require("crypto-js");
-const UrlParse = require('url-parse');
-const Hawk = require('hawk');
-const parsers = require('www-authenticate').parsers;
-const _ = require('lodash');
-const aws4 = require('aws4');
-const EdgeGridAuth = require('akamai-edgegrid/src/auth');
-const ntlm = require('httpntlm').ntlm;
-const crypto = require('crypto');
-const OAuth = require('oauth-1.0a');
-const MIMEType = require("whatwg-mimetype");
-const isBase64 = require('is-base64');
-const ASideTools = require('apipost-inside-tools');
-const contentDisposition = require('content-disposition');
-
+const FileType = require('file-type'),
+    setCookie = require('set-cookie-parser'),
+    isImage = require('is-image'),
+    fs = require('fs'),
+    path = require('path'),
+    isSvg = require('is-svg'),
+    request = require('postman-request'),
+    qs = require('querystring'),
+    JSON5 = require('json5'),
+    stripJsonComments = require("strip-json-comments"),
+    JSONbig = require('json-bigint'),
+    ATools = require('apipost-tools'),
+    Base64 = require('js-base64'),
+    CryptoJS = require("crypto-js"),
+    UrlParse = require('url-parse'),
+    Hawk = require('hawk'),
+    parsers = require('www-authenticate').parsers,
+    _ = require('lodash'),
+    aws4 = require('aws4'),
+    EdgeGridAuth = require('akamai-edgegrid/src/auth'),
+    ntlm = require('httpntlm').ntlm,
+    crypto = require('crypto'),
+    OAuth = require('oauth-1.0a'),
+    MIMEType = require("whatwg-mimetype"),
+    isBase64 = require('is-base64'),
+    ASideTools = require('apipost-inside-tools'),
+    contentDisposition = require('content-disposition');
 
 // Apipost 发送模块
 class ApipostRequest {
@@ -69,7 +70,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.12';
+        this.version = '0.0.13';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -420,7 +421,11 @@ class ApipostRequest {
         let bodys = '';
 
         if (ATools.isJson5(raw)) {
-            bodys = JSON.stringify(JSON5.parse(raw));
+            try {
+                bodys = JSONbig.stringify(JSONbig.parse(stripJsonComments(raw)));
+            } catch (e) {
+                bodys = JSON.stringify(JSON5.parse(raw));
+            }
         } else {
             bodys = raw;
         }
@@ -697,7 +702,11 @@ class ApipostRequest {
                 res.rawBody = body.toString();
 
                 if (ATools.isJson5(res.rawBody)) {
-                    res.json = JSON5.parse(res.rawBody);
+                    try {
+                        res.json = JSONbig.parse(stripJsonComments(res.rawBody));
+                    } catch (e) {
+                        res.json = JSON5.parse(res.rawBody);
+                    }
                 }
 
                 // 拼装 raw
@@ -724,9 +733,9 @@ class ApipostRequest {
                 // 拼装 raw
                 res.raw.type = res.resMime.ext
 
-                if (res.resMime.ext === 'xml'){
+                if (res.resMime.ext === 'xml') {
                     res.raw.responseText = res.rawBody = body.toString();
-                }else{
+                } else {
                     res.raw.responseText = '';
 
                     if (this.isCloud < 1) {
