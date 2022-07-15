@@ -70,7 +70,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.13';
+        this.version = '0.0.14';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
     }
 
@@ -382,29 +382,27 @@ class ApipostRequest {
                     }
 
                     if (item.type === 'File') {
-                        if (isBase64(item.value, { allowMime: true })) { // 云端
-                            let _mime: any = that.getBase64Mime(item.value);
-                            let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(item.value).toString()}`);
+                        if (fs.existsSync(item.value)) {
+                            forms.append(item.key, fs.createReadStream(item.value), options);
+                        } else {
+                            if (isBase64(item.fileBase64, { allowMime: true })) { // 云端
+                                let _mime: any = that.getBase64Mime(item.fileBase64);
+                                let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(item.fileBase64).toString()}`);
 
-                            if (!fs.existsSync(_temp_file)) {
-                                fs.mkdirSync(_temp_file);
-                            }
-
-                            if (item.filename != '') {
-                                _temp_file = path.join(_temp_file, `${item.filename}`);
-                            } else {
-                                _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
-                            }
-
-                            fs.writeFileSync(_temp_file, Buffer.from(item.value.replace(/^data:(.+?);base64,/, ''), 'base64'));
-                            forms.append(item.key, fs.createReadStream(_temp_file), options);
-                            fs.unlink(_temp_file, () => { });
-                        } else { // 本地
-                            try {
-                                if (fs.existsSync(item.value)) {
-                                    forms.append(item.key, fs.createReadStream(item.value), options);
+                                if (!fs.existsSync(_temp_file)) {
+                                    fs.mkdirSync(_temp_file);
                                 }
-                            } catch (e) { }
+
+                                if (item.filename != '') {
+                                    _temp_file = path.join(_temp_file, `${item.filename}`);
+                                } else {
+                                    _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
+                                }
+
+                                fs.writeFileSync(_temp_file, Buffer.from(item.fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
+                                forms.append(item.key, fs.createReadStream(_temp_file), options);
+                                fs.unlink(_temp_file, () => { });
+                            }
                         }
                     } else {
                         forms.append(item.key, item.value, options);
