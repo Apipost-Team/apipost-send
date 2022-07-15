@@ -385,9 +385,11 @@ class ApipostRequest {
                         if (fs.existsSync(item.value)) {
                             forms.append(item.key, fs.createReadStream(item.value), options);
                         } else {
-                            if (isBase64(item.fileBase64, { allowMime: true })) { // 云端
-                                let _mime: any = that.getBase64Mime(item.fileBase64);
-                                let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(item.fileBase64).toString()}`);
+                            let fileBase64 = isBase64(item.fileBase64, { allowMime: true }) ? item.fileBase64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
+
+                            if (isBase64(fileBase64)) { // 云端
+                                let _mime: any = that.getBase64Mime(fileBase64);
+                                let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
                                 if (!fs.existsSync(_temp_file)) {
                                     fs.mkdirSync(_temp_file);
@@ -399,7 +401,7 @@ class ApipostRequest {
                                     _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
                                 }
 
-                                fs.writeFileSync(_temp_file, Buffer.from(item.fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
+                                fs.writeFileSync(_temp_file, Buffer.from(fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
                                 forms.append(item.key, fs.createReadStream(_temp_file), options);
                                 fs.unlink(_temp_file, () => { });
                             }
