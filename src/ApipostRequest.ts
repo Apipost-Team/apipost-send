@@ -387,7 +387,7 @@ class ApipostRequest {
                         } else {
                             let fileBase64 = isBase64(item.fileBase64, { allowMime: true }) ? item.fileBase64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
 
-                            if (isBase64(fileBase64)) { // 云端
+                            if (isBase64(fileBase64, { allowMime: true })) { // 云端
                                 let _mime: any = that.getBase64Mime(fileBase64);
                                 let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
