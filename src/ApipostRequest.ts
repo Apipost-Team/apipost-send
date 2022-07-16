@@ -71,7 +71,7 @@ class ApipostRequest {
 
         // 基本信息
         this.version = '0.0.14';
-        this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
+        this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
     // 结果转换函数
