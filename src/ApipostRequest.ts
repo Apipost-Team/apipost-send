@@ -939,7 +939,7 @@ class ApipostRequest {
                                 options.agentOptions['ca'] = ca_pem;
                             } catch (err) {
                                 if(isBase64(this.https.certificateAuthority),{ allowMime: true }){
-                                    options.agentOptions['ca'] = Base64.atob(Base64.atob(this.https.certificateAuthority));
+                                    options.agentOptions['ca'] = Base64.atob(this.https.certificateAuthority);
                                 }
                             }   
                         }
@@ -951,7 +951,7 @@ class ApipostRequest {
                                 options.agentOptions['cert'] = ca_pem;
                             } catch (err) {
                                 if(isBase64(this.https.certificate),{ allowMime: true }){
-                                    options.agentOptions['cert'] = Base64.atob(Base64.atob(this.https.certificate));
+                                    options.agentOptions['cert'] = Base64.atob(this.https.certificate);
                                 }
                             }  
                             // pfx证书 
@@ -962,7 +962,7 @@ class ApipostRequest {
                                 options.agentOptions['pfx'] = ca_pem;
                             } catch (err) {
                                 if(isBase64(this.https.pfx),{ allowMime: true }){
-                                    options.agentOptions['pfx'] = Base64.atob(Base64.atob(this.https.pfx));
+                                    options.agentOptions['pfx'] = Base64.atob(this.https.pfx);
                                 }
                             } 
                         }
@@ -974,7 +974,7 @@ class ApipostRequest {
                                 options.agentOptions['key'] = ca_pem;
                             } catch (err) {
                                 if(isBase64(this.https.key),{ allowMime: true }){
-                                    options.agentOptions['key'] = Base64.atob(Base64.atob(this.https.key));
+                                    options.agentOptions['key'] = Base64.atob(this.https.key);
                                 }
                             }   
                         }
