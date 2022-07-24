@@ -25,7 +25,6 @@ const FileType = require('file-type'),
     isBase64 = require('is-base64'),
     ASideTools = require('apipost-inside-tools'),
     contentDisposition = require('content-disposition');
-
 // Apipost 发送模块
 class ApipostRequest {
     requstloop: number;
@@ -63,8 +62,8 @@ class ApipostRequest {
             "passphrase": '' // 私钥密码
         };
         this.timeout = parseInt(opts.timeout) >= 0 ? parseInt(opts.timeout) : 0;
-        this.proxy = opts.proxy ?? {};
-        this.proxyAuth = opts.proxyAuth ?? 'username:password';
+        this.proxy = opts?.proxy || '';
+        this.proxyAuth = opts?.proxyAuth ?? '';
         this.target_id = opts.target_id;
         this.isCloud = opts.hasOwnProperty('isCloud') ? (parseInt(opts.isCloud) > 0 ? 1 : -1) : -1; // update 0703
         this.requestLink = null;
@@ -868,7 +867,7 @@ class ApipostRequest {
                         Object.assign(extra_opts, { forever: true });
                     }
                     // 获取发送参数
-                    let options = {
+                    let options: any = {
                         // 拓展部分(固定) +complated
                         "encoding": null, // 响应结果统一为 Buffer
                         "verbose": !0, // 响应包含更多底层信息，如响应网络请求信息等
@@ -881,7 +880,6 @@ class ApipostRequest {
                         "gzip": !0, // 请求 gzip 压缩内容编码
                         "useQuerystring": !0,
                         // "allowContentTypeOverride": !0,
-                        "agent": false, // 代理
 
                         // 请求URL 相关 +complated
                         "uri": target.url, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
@@ -907,6 +905,9 @@ class ApipostRequest {
 
                         }, // 请求头, kv 对象格式
 
+                        // 证书相关
+                        "agentOptions":{},
+
                         // SSL 证书相关 +complated
                         'strictSSL': !!that.strictSSL, // 布尔值，是否强制要求SSL证书有效 1(true) 强制 !1(false) 非强制
 
@@ -917,6 +918,62 @@ class ApipostRequest {
                         ...extra_opts
 
                     }
+
+                    //#region 代理
+                    if (_.isString(this.proxy) && this.proxy.length > 0) {
+                        this.proxy = ATools.completionHttpProtocol(this.proxy);
+                        options.proxy = this.proxy;
+                    }
+                    if (_.isString(this.proxyAuth && this.proxyAuth.length > 0)) {
+                        options.headers['Proxy-Authorization'] = this.proxyAuth;
+                    }
+                    //#endregion
+
+                    //#region 证书
+                    if(_.isObject(this.https)){
+                        // ca 证书
+                        if(this.https.hasOwnProperty('certificateAuthority') && _.isString(this.https.certificateAuthority) && this.https.certificateAuthority.length > 0){
+                            try {
+                                fs.accessSync(this.https.certificateAuthority);
+                                let ca_pem = fs.readFileSync(this.https.certificateAuthority)
+                                options.agentOptions['ca'] = ca_pem;
+                            } catch (err) {
+                                options.agentOptions['ca'] = this.https.certificateAuthority;
+                            }   
+                        }
+                        // 客户端证书
+                        if(this.https.hasOwnProperty('certificate') && _.isString(this.https.certificate) && this.https.certificate.length > 0){
+                            try {
+                                fs.accessSync(this.https.certificate);
+                                let ca_pem = fs.readFileSync(this.https.certificate)
+                                options.agentOptions['cert'] = ca_pem;
+                            } catch (err) {
+                                options.agentOptions['cert'] = this.https.certificate;
+                            }  
+                            // pfx证书 
+                        }else if(this.https.hasOwnProperty('pfx') && _.isString(this.https.pfx) && this.https.pfx.length > 0){
+                            try {
+                                fs.accessSync(this.https.pfx);
+                                let ca_pem = fs.readFileSync(this.https.pfx)
+                                options.agentOptions['pfx'] = ca_pem;
+                            } catch (err) {
+                                options.agentOptions['pfx'] = this.https.pfx;
+                            } 
+                        }
+                        // 证书key文件
+                        if(this.https.hasOwnProperty('key') && _.isString(this.https.key) && this.https.key.length > 0){
+                            try {
+                                fs.accessSync(this.https.key);
+                                let ca_pem = fs.readFileSync(this.https.key)
+                                options.agentOptions['key'] = ca_pem;
+                            } catch (err) {
+                                options.agentOptions['key'] = this.https.key;
+                            }   
+                        }
+                        // 证书密码
+                        options.agentOptions['passphrase'] = this.https?.passphrase || '';
+                    }
+                    //#endregion
 
                     // 发送并返回响应
                     const r = that.requestLink = request(options, async function (error: any, response: any, body: any) {
