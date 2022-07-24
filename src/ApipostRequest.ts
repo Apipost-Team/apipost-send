@@ -1,29 +1,30 @@
-const FileType = require('file-type');
-const setCookie = require('set-cookie-parser');
-const isImage = require('is-image');
-const fs = require('fs');
-const path = require('path');
-const isSvg = require('is-svg');
-const request = require('postman-request');
-const qs = require('querystring');
-const JSON5 = require('json5');
-const ATools = require('apipost-tools');
-const Base64 = require('js-base64');
-const CryptoJS = require("crypto-js");
-const UrlParse = require('url-parse');
-const Hawk = require('hawk');
-const parsers = require('www-authenticate').parsers;
-const _ = require('lodash');
-const aws4 = require('aws4');
-const EdgeGridAuth = require('akamai-edgegrid/src/auth');
-const ntlm = require('httpntlm').ntlm;
-const crypto = require('crypto');
-const OAuth = require('oauth-1.0a');
-const MIMEType = require("whatwg-mimetype");
-const isBase64 = require('is-base64');
-const ASideTools = require('apipost-inside-tools');
-const contentDisposition = require('content-disposition');
-
+const FileType = require('file-type'),
+    setCookie = require('set-cookie-parser'),
+    isImage = require('is-image'),
+    fs = require('fs'),
+    path = require('path'),
+    isSvg = require('is-svg'),
+    request = require('postman-request'),
+    qs = require('querystring'),
+    JSON5 = require('json5'),
+    stripJsonComments = require("strip-json-comments"),
+    JSONbig = require('json-bigint'),
+    ATools = require('apipost-tools'),
+    Base64 = require('js-base64'),
+    CryptoJS = require("crypto-js"),
+    UrlParse = require('url-parse'),
+    Hawk = require('hawk'),
+    parsers = require('www-authenticate').parsers,
+    _ = require('lodash'),
+    aws4 = require('aws4'),
+    EdgeGridAuth = require('akamai-edgegrid/src/auth'),
+    ntlm = require('httpntlm').ntlm,
+    crypto = require('crypto'),
+    OAuth = require('oauth-1.0a'),
+    MIMEType = require("whatwg-mimetype"),
+    isBase64 = require('is-base64'),
+    ASideTools = require('apipost-inside-tools'),
+    contentDisposition = require('content-disposition');
 
 // Apipost 发送模块
 class ApipostRequest {
@@ -69,8 +70,8 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.11';
-        this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apiSchema.json'), 'utf-8'));
+        this.version = '0.0.14';
+        this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
     // 结果转换函数
@@ -381,29 +382,29 @@ class ApipostRequest {
                     }
 
                     if (item.type === 'File') {
-                        if (isBase64(item.value, { allowMime: true })) { // 云端
-                            let _mime: any = that.getBase64Mime(item.value);
-                            let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(item.value).toString()}`);
+                        if (fs.existsSync(item.value)) {
+                            forms.append(item.key, fs.createReadStream(item.value), options);
+                        } else {
+                            let fileBase64 = isBase64(item.fileBase64, { allowMime: true }) ? item.fileBase64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
 
-                            if (!fs.existsSync(_temp_file)) {
-                                fs.mkdirSync(_temp_file);
-                            }
+                            if (isBase64(fileBase64, { allowMime: true })) { // 云端
+                                let _mime: any = that.getBase64Mime(fileBase64);
+                                let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
-                            if (item.filename != '') {
-                                _temp_file = path.join(_temp_file, `${item.filename}`);
-                            } else {
-                                _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
-                            }
-
-                            fs.writeFileSync(_temp_file, Buffer.from(item.value.replace(/^data:(.+?);base64,/, ''), 'base64'));
-                            forms.append(item.key, fs.createReadStream(_temp_file), options);
-                            fs.unlink(_temp_file, () => { });
-                        } else { // 本地
-                            try {
-                                if (fs.existsSync(item.value)) {
-                                    forms.append(item.key, fs.createReadStream(item.value), options);
+                                if (!fs.existsSync(_temp_file)) {
+                                    fs.mkdirSync(_temp_file);
                                 }
-                            } catch (e) { }
+
+                                if (item.filename != '') {
+                                    _temp_file = path.join(_temp_file, `${item.filename}`);
+                                } else {
+                                    _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
+                                }
+
+                                fs.writeFileSync(_temp_file, Buffer.from(fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
+                                forms.append(item.key, fs.createReadStream(_temp_file), options);
+                                fs.unlink(_temp_file, () => { });
+                            }
                         }
                     } else {
                         forms.append(item.key, item.value, options);
@@ -420,7 +421,11 @@ class ApipostRequest {
         let bodys = '';
 
         if (ATools.isJson5(raw)) {
-            bodys = JSON.stringify(JSON5.parse(raw));
+            try {
+                bodys = JSONbig.stringify(JSONbig.parse(stripJsonComments(raw)));
+            } catch (e) {
+                bodys = JSON.stringify(JSON5.parse(raw));
+            }
         } else {
             bodys = raw;
         }
@@ -697,7 +702,11 @@ class ApipostRequest {
                 res.rawBody = body.toString();
 
                 if (ATools.isJson5(res.rawBody)) {
-                    res.json = JSON5.parse(res.rawBody);
+                    try {
+                        res.json = JSONbig.parse(stripJsonComments(res.rawBody));
+                    } catch (e) {
+                        res.json = JSON5.parse(res.rawBody);
+                    }
                 }
 
                 // 拼装 raw
@@ -723,13 +732,18 @@ class ApipostRequest {
 
                 // 拼装 raw
                 res.raw.type = res.resMime.ext
-                res.raw.responseText = '';
 
-                if (this.isCloud < 1) {
-                    res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
-                    fs.writeFileSync(res.rawBody, body);
+                if (res.resMime.ext === 'xml') {
+                    res.raw.responseText = res.rawBody = body.toString();
                 } else {
-                    res.rawBody = '';
+                    res.raw.responseText = '';
+
+                    if (this.isCloud < 1) {
+                        res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
+                        fs.writeFileSync(res.rawBody, body);
+                    } else {
+                        res.rawBody = '';
+                    }
                 }
             }
         }
