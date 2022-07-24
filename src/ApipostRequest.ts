@@ -938,7 +938,9 @@ class ApipostRequest {
                                 let ca_pem = fs.readFileSync(this.https.certificateAuthority)
                                 options.agentOptions['ca'] = ca_pem;
                             } catch (err) {
-                                options.agentOptions['ca'] = this.https.certificateAuthority;
+                                if(isBase64(this.https.certificateAuthority),{ allowMime: true }){
+                                    options.agentOptions['ca'] = Base64.atob(Base64.atob(this.https.certificateAuthority));
+                                }
                             }   
                         }
                         // 客户端证书
@@ -948,7 +950,9 @@ class ApipostRequest {
                                 let ca_pem = fs.readFileSync(this.https.certificate)
                                 options.agentOptions['cert'] = ca_pem;
                             } catch (err) {
-                                options.agentOptions['cert'] = this.https.certificate;
+                                if(isBase64(this.https.certificate),{ allowMime: true }){
+                                    options.agentOptions['cert'] = Base64.atob(Base64.atob(this.https.certificate));
+                                }
                             }  
                             // pfx证书 
                         }else if(this.https.hasOwnProperty('pfx') && _.isString(this.https.pfx) && this.https.pfx.length > 0){
@@ -957,7 +961,9 @@ class ApipostRequest {
                                 let ca_pem = fs.readFileSync(this.https.pfx)
                                 options.agentOptions['pfx'] = ca_pem;
                             } catch (err) {
-                                options.agentOptions['pfx'] = this.https.pfx;
+                                if(isBase64(this.https.pfx),{ allowMime: true }){
+                                    options.agentOptions['pfx'] = Base64.atob(Base64.atob(this.https.pfx));
+                                }
                             } 
                         }
                         // 证书key文件
@@ -967,7 +973,9 @@ class ApipostRequest {
                                 let ca_pem = fs.readFileSync(this.https.key)
                                 options.agentOptions['key'] = ca_pem;
                             } catch (err) {
-                                options.agentOptions['key'] = this.https.key;
+                                if(isBase64(this.https.key),{ allowMime: true }){
+                                    options.agentOptions['key'] = Base64.atob(Base64.atob(this.https.key));
+                                }
                             }   
                         }
                         // 证书密码
