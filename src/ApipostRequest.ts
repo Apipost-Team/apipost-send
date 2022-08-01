@@ -381,29 +381,35 @@ class ApipostRequest {
                     }
 
                     if (item.type === 'File') {
-                        if (fs.existsSync(item.value)) {
-                            forms.append(item.key, fs.createReadStream(item.value), options);
-                        } else {
-                            let fileBase64 = isBase64(item.fileBase64, { allowMime: true }) ? item.fileBase64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
+                        if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0) {
+                            item.fileBase64.forEach((base64: any) => {
+                                let fileBase64 = isBase64(base64, { allowMime: true }) ? base64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
 
-                            if (isBase64(fileBase64, { allowMime: true })) { // 云端
-                                let _mime: any = that.getBase64Mime(fileBase64);
-                                let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
+                                if (isBase64(fileBase64, { allowMime: true })) { // 云端
+                                    let _mime: any = that.getBase64Mime(fileBase64);
+                                    let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
-                                if (!fs.existsSync(_temp_file)) {
-                                    fs.mkdirSync(_temp_file);
+                                    if (!fs.existsSync(_temp_file)) {
+                                        fs.mkdirSync(_temp_file);
+                                    }
+
+                                    if (item.filename != '') {
+                                        _temp_file = path.join(_temp_file, `${item.filename}`);
+                                    } else {
+                                        _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
+                                    }
+
+                                    fs.writeFileSync(_temp_file, Buffer.from(fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
+                                    forms.append(item.key, fs.createReadStream(_temp_file), options);
+                                    fs.unlink(_temp_file, () => { });
                                 }
-
-                                if (item.filename != '') {
-                                    _temp_file = path.join(_temp_file, `${item.filename}`);
-                                } else {
-                                    _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
+                            })
+                        } else if (_.isArray(item?.value) && item.value.length > 0) {
+                            item.value.forEach((path: any) => {
+                                if (fs.existsSync(path)) {
+                                    forms.append(item.key, fs.createReadStream(path), options);
                                 }
-
-                                fs.writeFileSync(_temp_file, Buffer.from(fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
-                                forms.append(item.key, fs.createReadStream(_temp_file), options);
-                                fs.unlink(_temp_file, () => { });
-                            }
+                            })
                         }
                     } else {
                         forms.append(item.key, item.value, options);
@@ -906,7 +912,7 @@ class ApipostRequest {
                         }, // 请求头, kv 对象格式
 
                         // 证书相关
-                        "agentOptions":{},
+                        "agentOptions": {},
 
                         // SSL 证书相关 +complated
                         'strictSSL': !!that.strictSSL, // 布尔值，是否强制要求SSL证书有效 1(true) 强制 !1(false) 非强制
@@ -930,53 +936,53 @@ class ApipostRequest {
                     //#endregion
 
                     //#region 证书
-                    if(_.isObject(this.https)){
+                    if (_.isObject(this.https)) {
                         // ca 证书
-                        if(this.https.hasOwnProperty('certificateAuthority') && _.isString(this.https.certificateAuthority) && this.https.certificateAuthority.length > 0){
+                        if (this.https.hasOwnProperty('certificateAuthority') && _.isString(this.https.certificateAuthority) && this.https.certificateAuthority.length > 0) {
                             try {
                                 fs.accessSync(this.https.certificateAuthority);
                                 let ca_pem = fs.readFileSync(this.https.certificateAuthority)
                                 options.agentOptions['ca'] = ca_pem;
                             } catch (err) {
-                                if(isBase64(this.https.certificateAuthority),{ allowMime: true }){
+                                if (isBase64(this.https.certificateAuthority), { allowMime: true }) {
                                     options.agentOptions['ca'] = Base64.atob(this.https.certificateAuthority);
                                 }
-                            }   
+                            }
                         }
                         // 客户端证书
-                        if(this.https.hasOwnProperty('certificate') && _.isString(this.https.certificate) && this.https.certificate.length > 0){
+                        if (this.https.hasOwnProperty('certificate') && _.isString(this.https.certificate) && this.https.certificate.length > 0) {
                             try {
                                 fs.accessSync(this.https.certificate);
                                 let ca_pem = fs.readFileSync(this.https.certificate)
                                 options.agentOptions['cert'] = ca_pem;
                             } catch (err) {
-                                if(isBase64(this.https.certificate),{ allowMime: true }){
+                                if (isBase64(this.https.certificate), { allowMime: true }) {
                                     options.agentOptions['cert'] = Base64.atob(this.https.certificate);
                                 }
-                            }  
+                            }
                             // pfx证书 
-                        }else if(this.https.hasOwnProperty('pfx') && _.isString(this.https.pfx) && this.https.pfx.length > 0){
+                        } else if (this.https.hasOwnProperty('pfx') && _.isString(this.https.pfx) && this.https.pfx.length > 0) {
                             try {
                                 fs.accessSync(this.https.pfx);
                                 let ca_pem = fs.readFileSync(this.https.pfx)
                                 options.agentOptions['pfx'] = ca_pem;
                             } catch (err) {
-                                if(isBase64(this.https.pfx),{ allowMime: true }){
+                                if (isBase64(this.https.pfx), { allowMime: true }) {
                                     options.agentOptions['pfx'] = Base64.atob(this.https.pfx);
                                 }
-                            } 
+                            }
                         }
                         // 证书key文件
-                        if(this.https.hasOwnProperty('key') && _.isString(this.https.key) && this.https.key.length > 0){
+                        if (this.https.hasOwnProperty('key') && _.isString(this.https.key) && this.https.key.length > 0) {
                             try {
                                 fs.accessSync(this.https.key);
                                 let ca_pem = fs.readFileSync(this.https.key)
                                 options.agentOptions['key'] = ca_pem;
                             } catch (err) {
-                                if(isBase64(this.https.key),{ allowMime: true }){
+                                if (isBase64(this.https.key), { allowMime: true }) {
                                     options.agentOptions['key'] = Base64.atob(this.https.key);
                                 }
-                            }   
+                            }
                         }
                         // 证书密码
                         options.agentOptions['passphrase'] = this.https?.passphrase || '';
