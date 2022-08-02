@@ -16,7 +16,7 @@ export default [{
     commonjs(),
     copy({
       targets: [
-        { src: 'src/apiSchema.json', dest: 'dist/' },
+        { src: 'src/apipost-http-schema.json', dest: 'dist/' },
       ]
     })
   ]
