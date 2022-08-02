@@ -69,7 +69,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.14';
+        this.version = '0.0.16';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -393,7 +393,7 @@ class ApipostRequest {
                                         fs.mkdirSync(_temp_file);
                                     }
 
-                                    if (item.filename != '') {
+                                    if (typeof item.filename == 'string') {
                                         _temp_file = path.join(_temp_file, `${item.filename}`);
                                     } else {
                                         _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
