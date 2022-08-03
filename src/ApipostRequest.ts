@@ -27,7 +27,7 @@ const FileType = require('file-type'),
     contentDisposition = require('content-disposition');
 // Apipost 发送模块
 class ApipostRequest {
-    requstloop: number;
+    requestloop: number;
     maxrequstloop: number;
     followRedirect: any;
     strictSSL: boolean;
@@ -47,7 +47,7 @@ class ApipostRequest {
             opts = {};
         }
 
-        this.requstloop = 0; // 初始化重定向
+        this.requestloop = 0; // 初始化重定向
 
         // 配置项
         this.maxrequstloop = parseInt(opts.maxrequstloop) > 0 ? parseInt(opts.maxrequstloop) : 5; // 最大重定向次数
@@ -69,7 +69,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.16';
+        this.version = '0.0.18';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -127,7 +127,7 @@ class ApipostRequest {
     createAuthHeaders(target: any) {
         let headers: any = {};
         let auth = target.request.auth;
-        let { uri, host, fullPath, baseUri } = this.setQueryString(target.url, this.formatQueries(target.request.query.parameter));
+        let { uri, host, fullPath, baseUri } = this.setQueryString(target.request.url, this.formatQueries(target.request.query.parameter));
         let entityBody = '';
         let rbody: any = this.formatRequestBodys(target);
 
@@ -863,7 +863,7 @@ class ApipostRequest {
             try {
                 const that = this;
                 const Validator = require('jsonschema').validate;
-                that.requstloop++;
+                that.requestloop++;
 
                 if (!Validator(target, that.jsonschema).valid) {
                     reject(that.ConvertResult('error', '错误的JSON数据格式'));
@@ -888,7 +888,7 @@ class ApipostRequest {
                         // "allowContentTypeOverride": !0,
 
                         // 请求URL 相关 +complated
-                        "uri": target.url, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
+                        "uri": target.request.url, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
                         // "baseUrl": "https://go.apipost.cn/", // 前置url，可以用此项决定环境前置URL
 
                         // query 相关+complated
@@ -1031,7 +1031,7 @@ class ApipostRequest {
                             }))
 
                             // 重定向的情况递归
-                            if (that.followRedirect && that.requstloop < that.maxrequstloop) {
+                            if (that.followRedirect && that.requestloop < that.maxrequstloop) {
                                 if (response.caseless.has('location') === 'location') { // 3xx  重定向
                                     let loopTarget = _.cloneDeep(target);
                                     loopTarget.url = loopTarget.request.url = response.caseless.get('location');
