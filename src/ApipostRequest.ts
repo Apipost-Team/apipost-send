@@ -69,7 +69,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.18';
+        this.version = '0.0.19';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -673,7 +673,7 @@ class ApipostRequest {
 
         res.code = response.statusCode;
         res.status = response.statusMessage;
-        res.raw.status = res.status; //响应状态码（200、301、404等）
+        res.raw.status = res.statusCode; //响应状态码（200、301、404等）
         res.raw.responseTime = response.elapsedTime; //响应时间（毫秒）
 
         // 响应类型和 内容
