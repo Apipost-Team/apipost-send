@@ -389,7 +389,7 @@ class ApipostRequest {
                                     let _mime: any = that.getBase64Mime(fileBase64);
                                     let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
-                                    if (!fs.existsSync(_temp_file)) {
+                                    if (!fs.accessSync(_temp_file)) {
                                         fs.mkdirSync(_temp_file);
                                     }
 
@@ -406,7 +406,7 @@ class ApipostRequest {
                             })
                         } else if (_.isArray(item?.value) && item.value.length > 0) {
                             item.value.forEach((path: any) => {
-                                if (fs.existsSync(path)) {
+                                if (fs.accessSync(path)) {
                                     forms.append(item.key, fs.createReadStream(path), options);
                                 }
                             })
