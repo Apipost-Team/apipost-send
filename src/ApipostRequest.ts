@@ -399,7 +399,9 @@ class ApipostRequest {
                                     let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
                                     if (!fs.accessSync(_temp_file)) {
-                                        fs.mkdirSync(_temp_file);
+                                        try { // fix bug
+                                            fs.mkdirSync(_temp_file);
+                                        } catch (e) { }
                                     }
 
                                     if (typeof item.filename == 'string') {
