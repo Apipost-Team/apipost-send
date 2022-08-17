@@ -398,10 +398,14 @@ class ApipostRequest {
                                     let _mime: any = that.getBase64Mime(fileBase64);
                                     let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
-                                    if (!fs.accessSync(_temp_file)) {
-                                        try { // fix bug
-                                            fs.mkdirSync(_temp_file);
-                                        } catch (e) { }
+                                    try {
+                                        fs.accessSync(_temp_file);
+                                    } catch (err) {
+                                        try {
+                                            fs.mkdirSync(_temp_file)
+                                        } catch (e) {
+                            
+                                        }
                                     }
 
                                     if (typeof item.filename == 'string') {
@@ -417,8 +421,12 @@ class ApipostRequest {
                             })
                         } else if (_.isArray(item?.value) && item.value.length > 0) {
                             item.value.forEach((path: any) => {
-                                if (fs.accessSync(path)) {
-                                    forms.append(item.key, fs.createReadStream(path), options);
+                                try {
+                                    if (fs.accessSync(path)) {
+                                        forms.append(item.key, fs.createReadStream(path), options);
+                                    }
+                                } catch (error) {
+                                    
                                 }
                             })
                         }
