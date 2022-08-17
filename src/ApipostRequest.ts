@@ -401,7 +401,7 @@ class ApipostRequest {
 
                                     fs.writeFileSync(_temp_file, Buffer.from(fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
                                     forms.append(item.key, fs.createReadStream(_temp_file), options);
-                                    fs.unlink(_temp_file, () => { });
+                                    // fs.unlink(_temp_file, () => { }); // fix 文件上传bug
                                 }
                             })
                         } else if (_.isArray(item?.value) && item.value.length > 0) {
