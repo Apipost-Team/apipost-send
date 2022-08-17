@@ -137,172 +137,181 @@ class ApipostRequest {
             entityBody = rbody['body'];
         }
 
-        switch (auth.type) {
-            case 'noauth':
-                break;
-            case 'kv':
-                headers[auth.kv.key] = auth.kv.value;
-                break;
-            case 'bearer':
-                headers['Authorization'] = "Bearer " + auth.bearer.key;
-                break;
-            case 'basic':
-                headers['Authorization'] = "Basic " + Base64.btoa(auth.basic.username + ':' + auth.basic.password);
-                break;
-            case 'digest':
-                let ha1 = '';
-                let ha2 = '';
-                let response = '';
-                let hashFunc = CryptoJS.MD5;
+        try { // fixed 修复可能因第三方包报错导致的 bug
+            switch (auth.type) {
+                case 'noauth':
+                    break;
+                case 'kv':
+                    headers[auth.kv.key] = auth.kv.value;
+                    break;
+                case 'bearer':
+                    headers['Authorization'] = "Bearer " + auth.bearer.key;
+                    break;
+                case 'basic':
+                    headers['Authorization'] = "Basic " + Base64.btoa(auth.basic.username + ':' + auth.basic.password);
+                    break;
+                case 'digest':
+                    let ha1 = '';
+                    let ha2 = '';
+                    let response = '';
+                    let hashFunc = CryptoJS.MD5;
 
-                if (auth.digest.algorithm == 'MD5' || auth.digest.algorithm == 'MD5-sess') {
-                    hashFunc = CryptoJS.MD5;
-                } else if (auth.digest.algorithm == 'SHA-256' || auth.digest.algorithm == 'SHA-256-sess') {
-                    hashFunc = CryptoJS.SHA256;
-                } else if (auth.digest.algorithm == 'SHA-512' || auth.digest.algorithm == 'SHA-512-sess') {
-                    hashFunc = CryptoJS.SHA512;
-                }
+                    if (auth.digest.algorithm == 'MD5' || auth.digest.algorithm == 'MD5-sess') {
+                        hashFunc = CryptoJS.MD5;
+                    } else if (auth.digest.algorithm == 'SHA-256' || auth.digest.algorithm == 'SHA-256-sess') {
+                        hashFunc = CryptoJS.SHA256;
+                    } else if (auth.digest.algorithm == 'SHA-512' || auth.digest.algorithm == 'SHA-512-sess') {
+                        hashFunc = CryptoJS.SHA512;
+                    }
 
-                let cnonce = auth.digest.cnonce == '' ? 'apipost' : auth.digest.cnonce;
+                    let cnonce = auth.digest.cnonce == '' ? 'apipost' : auth.digest.cnonce;
 
-                if (auth.digest.algorithm.substr(-5) == '-sess') {
-                    ha1 = hashFunc(hashFunc(auth.digest.username + ':' + auth.digest.realm + ':' + auth.digest.password).toString() + ':' + auth.digest.nonce + ':' + cnonce).toString();
-                } else {
-                    ha1 = hashFunc(auth.digest.username + ':' + auth.digest.realm + ':' + auth.digest.password).toString();
-                }
+                    if (auth.digest.algorithm.substr(-5) == '-sess') {
+                        ha1 = hashFunc(hashFunc(auth.digest.username + ':' + auth.digest.realm + ':' + auth.digest.password).toString() + ':' + auth.digest.nonce + ':' + cnonce).toString();
+                    } else {
+                        ha1 = hashFunc(auth.digest.username + ':' + auth.digest.realm + ':' + auth.digest.password).toString();
+                    }
 
-                if (auth.digest.qop != 'auth-int') {
-                    ha2 = hashFunc(target.method + ':' + fullPath).toString();
-                } else if (auth.digest.qop == 'auth-int') {
-                    ha2 = hashFunc(target.method + ':' + fullPath + ':' + hashFunc(entityBody).toString()).toString();
-                }
+                    if (auth.digest.qop != 'auth-int') {
+                        ha2 = hashFunc(target.method + ':' + fullPath).toString();
+                    } else if (auth.digest.qop == 'auth-int') {
+                        ha2 = hashFunc(target.method + ':' + fullPath + ':' + hashFunc(entityBody).toString()).toString();
+                    }
 
-                if (auth.digest.qop == 'auth' || auth.digest.qop == 'auth-int') {
-                    response = hashFunc(ha1 + ':' + auth.digest.nonce + ':' + (auth.digest.nc || '00000001') + ':' + cnonce + ':' + auth.digest.qop + ':' + ha2).toString();
-                } else {
-                    response = hashFunc(ha1 + ':' + auth.digest.nonce + ':' + ha2).toString();
-                }
+                    if (auth.digest.qop == 'auth' || auth.digest.qop == 'auth-int') {
+                        response = hashFunc(ha1 + ':' + auth.digest.nonce + ':' + (auth.digest.nc || '00000001') + ':' + cnonce + ':' + auth.digest.qop + ':' + ha2).toString();
+                    } else {
+                        response = hashFunc(ha1 + ':' + auth.digest.nonce + ':' + ha2).toString();
+                    }
 
-                headers['Authorization'] = "Digest username=\"" + auth.digest.username + "\", realm=\"" + auth.digest.realm + "\", nonce=\"" + auth.digest.nonce + "\", uri=\"" + fullPath + "\", algorithm=\"" + auth.digest.algorithm + "\", qop=" + auth.digest.qop + ",nc=" + (auth.digest.nc || '00000001') + ", cnonce=\"" + cnonce + "\", response=\"" + response + "\", opaque=\"" + auth.digest.opaque + "\"";
-                break;
-            case 'hawk':
-                let options = {
-                    ext: auth.hawk.extraData,
-                    timestamp: auth.hawk.timestamp,
-                    nonce: auth.hawk.nonce,
-                    // payload: '{"some":"payload"}',                      // UTF-8 encoded string for body hash generation (ignored if hash provided)
-                    // contentType: 'application/json',                    // Payload content-type (ignored if hash provided)
-                    // hash: false,
-                    app: auth.hawk.app,
-                    dlg: auth.hawk.delegation
-                }
+                    headers['Authorization'] = "Digest username=\"" + auth.digest.username + "\", realm=\"" + auth.digest.realm + "\", nonce=\"" + auth.digest.nonce + "\", uri=\"" + fullPath + "\", algorithm=\"" + auth.digest.algorithm + "\", qop=" + auth.digest.qop + ",nc=" + (auth.digest.nc || '00000001') + ", cnonce=\"" + cnonce + "\", response=\"" + response + "\", opaque=\"" + auth.digest.opaque + "\"";
+                    break;
+                case 'hawk':
+                    let options = {
+                        ext: auth.hawk.extraData,
+                        timestamp: auth.hawk.timestamp,
+                        nonce: auth.hawk.nonce,
+                        // payload: '{"some":"payload"}',                      // UTF-8 encoded string for body hash generation (ignored if hash provided)
+                        // contentType: 'application/json',                    // Payload content-type (ignored if hash provided)
+                        // hash: false,
+                        app: auth.hawk.app,
+                        dlg: auth.hawk.delegation
+                    }
 
-                let { header } = Hawk.client.header(uri, target.method, {
-                    credentials: {
-                        id: auth.hawk.authId,
-                        key: auth.hawk.authKey,
-                        algorithm: auth.hawk.algorithm,
-                    }, ...options
-                });
-                headers['Authorization'] = header;
-                break;
-            case 'awsv4':
-                let awsauth = aws4.sign({
-                    method: target.method,
-                    host: host,
-                    path: fullPath,
-                    service: auth.awsv4.service,
-                    region: auth.awsv4.region,
-                    body: entityBody
-                }, {
-                    accessKeyId: auth.awsv4.accessKey,
-                    secretAccessKey: auth.awsv4.secretKey,
-                    sessionToken: auth.awsv4.sessionToken
-                });
+                    if (auth.hawk.algorithm === '') {
+                        auth.hawk.algorithm = 'sha256';
+                    }
 
-                Object.assign(headers, awsauth.headers);
-                break;
-            case 'edgegrid':
-                let eg = EdgeGridAuth.generateAuth({
-                    path: uri,
-                    method: target.method,
-                    headers: {},
-                    body: entityBody
-                }, auth.edgegrid.clientToken, auth.edgegrid.clientSecret, auth.edgegrid.accessToken, auth.edgegrid.baseUri, 0, auth.edgegrid.nonce, auth.edgegrid.timestamp);
+                    if (auth.hawk.authId !== '' && auth.hawk.authKey !== '') { // fix bug
+                        let { header } = Hawk.client.header(uri, target.method, {
+                            credentials: {
+                                id: auth.hawk.authId,
+                                key: auth.hawk.authKey,
+                                algorithm: auth.hawk.algorithm,
+                            }, ...options
+                        });
+                        headers['Authorization'] = header;
+                    }
+                    break;
+                case 'awsv4':
+                    let awsauth = aws4.sign({
+                        method: target.method,
+                        host: host,
+                        path: fullPath,
+                        service: auth.awsv4.service,
+                        region: auth.awsv4.region,
+                        body: entityBody
+                    }, {
+                        accessKeyId: auth.awsv4.accessKey,
+                        secretAccessKey: auth.awsv4.secretKey,
+                        sessionToken: auth.awsv4.sessionToken
+                    });
 
-                Object.assign(headers, eg.headers);
-                break;
-            case 'ntlm': // https://github.com/SamDecrock/node-http-ntlm
-                Object.assign(headers, {
-                    'Connection': 'keep-alive',
-                    'Authorization': ntlm.createType1Message({
-                        url: uri,
-                        username: auth.ntlm.username,
-                        password: auth.ntlm.password,
-                        workstation: auth.ntlm.workstation,
-                        domain: auth.ntlm.domain
+                    Object.assign(headers, awsauth.headers);
+                    break;
+                case 'edgegrid':
+                    let eg = EdgeGridAuth.generateAuth({
+                        path: uri,
+                        method: target.method,
+                        headers: {},
+                        body: entityBody
+                    }, auth.edgegrid.clientToken, auth.edgegrid.clientSecret, auth.edgegrid.accessToken, auth.edgegrid.baseUri, 0, auth.edgegrid.nonce, auth.edgegrid.timestamp);
+
+                    Object.assign(headers, eg.headers);
+                    break;
+                case 'ntlm': // https://github.com/SamDecrock/node-http-ntlm
+                    Object.assign(headers, {
+                        'Connection': 'keep-alive',
+                        'Authorization': ntlm.createType1Message({
+                            url: uri,
+                            username: auth.ntlm.username,
+                            password: auth.ntlm.password,
+                            workstation: auth.ntlm.workstation,
+                            domain: auth.ntlm.domain
+                        })
+                    });
+                    break;
+
+                case 'ntlm_close':
+                    Object.assign(headers, {
+                        'Connection': 'close',
+                        'Authorization': ntlm.createType3Message(auth.ntlm_close.type2msg, {
+                            url: uri,
+                            username: auth.ntlm.username,
+                            password: auth.ntlm.password,
+                            workstation: auth.ntlm.workstation,
+                            domain: auth.ntlm.domain
+                        })
+                    });
+                    break;
+                case 'oauth1':
+                    let hmac = 'sha1';
+
+                    if (auth.oauth1.signatureMethod === 'HMAC-SHA1') {
+                        hmac = 'sha1';
+                    } else if (auth.oauth1.signatureMethod === 'HMAC-SHA256') {
+                        hmac = 'sha256';
+                    } else if (auth.oauth1.signatureMethod === 'HMAC-SHA512') {
+                        hmac = 'sha512';
+                    } else {
+                        // todo..
+                        // 支持更多加密方式
+                    }
+                    const oauth = OAuth({
+                        consumer: {
+                            key: auth.oauth1.consumerKey,
+                            secret: auth.oauth1.consumerSecret,
+                            version: auth.oauth1.version ?? '1.0',
+                            nonce: auth.oauth1.nonce,
+                            realm: auth.oauth1.realm,
+                            timestamp: auth.oauth1.timestamp,
+                            includeBodyHash: auth.oauth1.includeBodyHash,
+                        },
+                        signature_method: auth.oauth1.signatureMethod,
+                        hash_function(base_string: string, key: string) {
+                            let hash = crypto.createHmac(hmac, key).update(base_string).digest('base64')
+                            return hash;
+                        },
                     })
-                });
-                break;
 
-            case 'ntlm_close':
-                Object.assign(headers, {
-                    'Connection': 'close',
-                    'Authorization': ntlm.createType3Message(auth.ntlm_close.type2msg, {
+                    const request_data = {
                         url: uri,
-                        username: auth.ntlm.username,
-                        password: auth.ntlm.password,
-                        workstation: auth.ntlm.workstation,
-                        domain: auth.ntlm.domain
-                    })
-                });
-                break;
-            case 'oauth1':
-                let hmac = 'sha1';
+                        method: target.method,
+                        data: auth.oauth1.includeBodyHash ? entityBody : {},
+                        oauth_callback: auth.oauth1.callback
+                    }
 
-                if (auth.oauth1.signatureMethod === 'HMAC-SHA1') {
-                    hmac = 'sha1';
-                } else if (auth.oauth1.signatureMethod === 'HMAC-SHA256') {
-                    hmac = 'sha256';
-                } else if (auth.oauth1.signatureMethod === 'HMAC-SHA512') {
-                    hmac = 'sha512';
-                } else {
-                    // todo..
-                    // 支持更多加密方式
-                }
-                const oauth = OAuth({
-                    consumer: {
-                        key: auth.oauth1.consumerKey,
-                        secret: auth.oauth1.consumerSecret,
-                        version: auth.oauth1.version ?? '1.0',
-                        nonce: auth.oauth1.nonce,
-                        realm: auth.oauth1.realm,
-                        timestamp: auth.oauth1.timestamp,
-                        includeBodyHash: auth.oauth1.includeBodyHash,
-                    },
-                    signature_method: auth.oauth1.signatureMethod,
-                    hash_function(base_string: string, key: string) {
-                        let hash = crypto.createHmac(hmac, key).update(base_string).digest('base64')
-                        return hash;
-                    },
-                })
+                    // console.log(request_data)
+                    const token = {
+                        key: auth.oauth1.token,
+                        secret: auth.oauth1.tokenSecret,
+                    }
 
-                const request_data = {
-                    url: uri,
-                    method: target.method,
-                    data: auth.oauth1.includeBodyHash ? entityBody : {},
-                    oauth_callback: auth.oauth1.callback
-                }
+                    Object.assign(headers, oauth.toHeader(oauth.authorize(request_data, token)));
+                    break;
+            }
+        } catch (e) { }
 
-                // console.log(request_data)
-                const token = {
-                    key: auth.oauth1.token,
-                    secret: auth.oauth1.tokenSecret,
-                }
-
-                Object.assign(headers, oauth.toHeader(oauth.authorize(request_data, token)));
-                break;
-        }
 
         return headers;
     }
