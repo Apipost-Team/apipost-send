@@ -89,10 +89,11 @@ class ApipostRequest {
 
         if (arr instanceof Array) {
             arr.forEach(function (item) { // fixed bug
-                if (parseInt(item.is_checked) === 1) {  item.value
-                    if(item.value === ''){
+                if (parseInt(item.is_checked) === 1) {
+                    item.value
+                    if (item.value === '') {
                         queries += `${item.key}&`;
-                    }else{
+                    } else {
                         queries += `${item.key}=${item.value}&`;
                     }
                 }
@@ -359,7 +360,9 @@ class ApipostRequest {
         if (arr instanceof Array) {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1) {
-                    bodys += item.key + '=' + item.value + '&';
+                    if(item.key !== ''){
+                        bodys += item.key + '=' + item.value + '&';
+                    }
                 }
             })
         }
@@ -407,7 +410,7 @@ class ApipostRequest {
                                         try {
                                             fs.mkdirSync(_temp_file)
                                         } catch (e) {
-                            
+
                                         }
                                     }
 
@@ -418,7 +421,10 @@ class ApipostRequest {
                                     }
 
                                     fs.writeFileSync(_temp_file, Buffer.from(fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
-                                    forms.append(item.key, fs.createReadStream(_temp_file), options);
+
+                                    if (item.key !== '') {
+                                        forms.append(item.key, fs.createReadStream(_temp_file), options);
+                                    }
                                     // fs.unlink(_temp_file, () => { }); // fix 文件上传bug
                                 }
                             })
@@ -426,15 +432,19 @@ class ApipostRequest {
                             item.value.forEach((path: any) => {
                                 try {
                                     if (fs.accessSync(path)) {
-                                        forms.append(item.key, fs.createReadStream(path), options);
+                                        if (item.key !== '') {
+                                            forms.append(item.key, fs.createReadStream(path), options);
+                                        }
                                     }
                                 } catch (error) {
-                                    
+
                                 }
                             })
                         }
                     } else {
-                        forms.append(item.key, item.value, options);
+                        if (item.key !== '') {
+                            forms.append(item.key, item.value, options);
+                        }
                     }
                 }
             })
