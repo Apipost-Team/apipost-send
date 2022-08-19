@@ -360,7 +360,7 @@ class ApipostRequest {
         if (arr instanceof Array) {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1) {
-                    if(item.key !== ''){
+                    if (item.key !== '') {
                         bodys += item.key + '=' + item.value + '&';
                     }
                 }
@@ -397,6 +397,8 @@ class ApipostRequest {
 
                     if (item.type === 'File') {
                         if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0) {
+                            let _file_names = typeof item.filename == 'string' ? item.filename.split('|') : [];
+                            let _i = 0;
                             item.fileBase64.forEach((base64: any) => {
                                 let fileBase64 = isBase64(base64, { allowMime: true }) ? base64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
 
@@ -409,13 +411,11 @@ class ApipostRequest {
                                     } catch (err) {
                                         try {
                                             fs.mkdirSync(_temp_file)
-                                        } catch (e) {
-
-                                        }
+                                        } catch (e) { }
                                     }
 
-                                    if (typeof item.filename == 'string') {
-                                        _temp_file = path.join(_temp_file, `${item.filename}`);
+                                    if (typeof _file_names[_i] == 'string') {
+                                        _temp_file = path.join(_temp_file, `${_file_names[_i]}`);
                                     } else {
                                         _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
                                     }
@@ -427,6 +427,8 @@ class ApipostRequest {
                                     }
                                     // fs.unlink(_temp_file, () => { }); // fix 文件上传bug
                                 }
+
+                                _i++;
                             })
                         } else if (_.isArray(item?.value) && item.value.length > 0) {
                             item.value.forEach((path: any) => {
