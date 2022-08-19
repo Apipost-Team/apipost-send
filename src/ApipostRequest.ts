@@ -69,7 +69,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.24';
+        this.version = '0.0.26';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -88,15 +88,19 @@ class ApipostRequest {
         let queries = '';
 
         if (arr instanceof Array) {
-            arr.forEach(function (item) {
+            arr.forEach(function (item) { // fixed bug
                 if (parseInt(item.is_checked) === 1) {
-                    queries += item.key + '=' + item.value + '&';
+                    item.value
+                    if (item.value === '') {
+                        queries += `${item.key}&`;
+                    } else {
+                        queries += `${item.key}=${item.value}&`;
+                    }
                 }
             })
         }
 
-        queries = queries.substr(-1) == '&' ? queries.substr(0, queries.length - 1) : queries;
-        return qs.parse(queries);
+        return qs.parse(_.trimEnd(queries, '&'));
     }
 
     // 用新的query对象(object)设置 uri 的query参数
@@ -356,7 +360,9 @@ class ApipostRequest {
         if (arr instanceof Array) {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1) {
-                    bodys += item.key + '=' + item.value + '&';
+                    if (item.key !== '') {
+                        bodys += item.key + '=' + item.value + '&';
+                    }
                 }
             })
         }
@@ -391,6 +397,8 @@ class ApipostRequest {
 
                     if (item.type === 'File') {
                         if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0) {
+                            let _file_names = typeof item.filename == 'string' ? item.filename.split('|') : [];
+                            let _i = 0;
                             item.fileBase64.forEach((base64: any) => {
                                 let fileBase64 = isBase64(base64, { allowMime: true }) ? base64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
 
@@ -403,35 +411,42 @@ class ApipostRequest {
                                     } catch (err) {
                                         try {
                                             fs.mkdirSync(_temp_file)
-                                        } catch (e) {
-                            
-                                        }
+                                        } catch (e) { }
                                     }
 
-                                    if (typeof item.filename == 'string') {
-                                        _temp_file = path.join(_temp_file, `${item.filename}`);
+                                    if (typeof _file_names[_i] == 'string') {
+                                        _temp_file = path.join(_temp_file, `${_file_names[_i]}`);
                                     } else {
                                         _temp_file = path.join(_temp_file, `${CryptoJS.MD5(item.key).toString()}.${_mime ? _mime.ext : 'unknown'}`);
                                     }
 
                                     fs.writeFileSync(_temp_file, Buffer.from(fileBase64.replace(/^data:(.+?);base64,/, ''), 'base64'));
-                                    forms.append(item.key, fs.createReadStream(_temp_file), options);
+
+                                    if (item.key !== '') {
+                                        forms.append(item.key, fs.createReadStream(_temp_file), options);
+                                    }
                                     // fs.unlink(_temp_file, () => { }); // fix 文件上传bug
                                 }
+
+                                _i++;
                             })
                         } else if (_.isArray(item?.value) && item.value.length > 0) {
                             item.value.forEach((path: any) => {
                                 try {
                                     if (fs.accessSync(path)) {
-                                        forms.append(item.key, fs.createReadStream(path), options);
+                                        if (item.key !== '') {
+                                            forms.append(item.key, fs.createReadStream(path), options);
+                                        }
                                     }
                                 } catch (error) {
-                                    
+
                                 }
                             })
                         }
                     } else {
-                        forms.append(item.key, item.value, options);
+                        if (item.key !== '') {
+                            forms.append(item.key, item.value, options);
+                        }
                     }
                 }
             })
@@ -692,7 +707,7 @@ class ApipostRequest {
 
         res.code = response.statusCode;
         res.status = response.statusMessage;
-        res.raw.status = res.statusCode; //响应状态码（200、301、404等）
+        res.raw.status = res.code; //响应状态码（200、301、404等） // fixed bug
         res.raw.responseTime = response.elapsedTime; //响应时间（毫秒）
 
         // 响应类型和 内容
