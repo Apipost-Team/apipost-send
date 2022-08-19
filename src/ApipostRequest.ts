@@ -88,15 +88,18 @@ class ApipostRequest {
         let queries = '';
 
         if (arr instanceof Array) {
-            arr.forEach(function (item) {
-                if (parseInt(item.is_checked) === 1) {
-                    queries += item.key + '=' + item.value + '&';
+            arr.forEach(function (item) { // fixed bug
+                if (parseInt(item.is_checked) === 1) {  item.value
+                    if(item.value === ''){
+                        queries += `${item.key}&`;
+                    }else{
+                        queries += `${item.key}=${item.value}&`;
+                    }
                 }
             })
         }
 
-        queries = queries.substr(-1) == '&' ? queries.substr(0, queries.length - 1) : queries;
-        return qs.parse(queries);
+        return qs.parse(_.trimEnd(queries, '&'));
     }
 
     // 用新的query对象(object)设置 uri 的query参数
