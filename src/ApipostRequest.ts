@@ -152,7 +152,7 @@ class ApipostRequest {
                     headers['Authorization'] = "Bearer " + auth.bearer.key;
                     break;
                 case 'basic':
-                    headers['Authorization'] = "Basic " + Base64.btoa(auth.basic.username + ':' + auth.basic.password);
+                    headers['Authorization'] = "Basic " + Base64.encode(auth.basic.username + ':' + auth.basic.password);
                     break;
                 case 'digest':
                     let ha1 = '';
