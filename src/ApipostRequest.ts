@@ -1079,6 +1079,11 @@ class ApipostRequest {
 
                                         });
                                         that.request(loopTarget);
+                                    } else {
+                                        reslove(that.ConvertResult('success', 'success', {
+                                            request: _request,
+                                            response: await that.formatResponseData(error, response, body)
+                                        }))
                                     }
                                 } else {
                                     reslove(that.ConvertResult('success', 'success', {
