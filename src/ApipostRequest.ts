@@ -69,7 +69,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.26';
+        this.version = '0.0.27';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -1059,11 +1059,6 @@ class ApipostRequest {
                                 };
                             }
 
-                            reslove(that.ConvertResult('success', 'success', {
-                                request: _request,
-                                response: await that.formatResponseData(error, response, body)
-                            }))
-
                             // 重定向的情况递归
                             if (that.followRedirect && that.requestloop < that.maxrequstloop) {
                                 if (response.caseless.has('location') === 'location') { // 3xx  重定向
@@ -1085,7 +1080,17 @@ class ApipostRequest {
                                         });
                                         that.request(loopTarget);
                                     }
+                                } else {
+                                    reslove(that.ConvertResult('success', 'success', {
+                                        request: _request,
+                                        response: await that.formatResponseData(error, response, body)
+                                    }))
                                 }
+                            } else {
+                                reslove(that.ConvertResult('success', 'success', {
+                                    request: _request,
+                                    response: await that.formatResponseData(error, response, body)
+                                }))
                             }
                         }
                     });
