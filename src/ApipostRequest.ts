@@ -69,7 +69,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.27';
+        this.version = '0.0.28';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -1064,21 +1064,33 @@ class ApipostRequest {
                                 if (response.caseless.has('location') === 'location') { // 3xx  重定向
                                     let loopTarget = _.cloneDeep(target);
                                     loopTarget.url = loopTarget.request.url = response.caseless.get('location');
-                                    that.request(loopTarget)
+                                    that.request(loopTarget).then(res => {
+                                        reslove(res)
+                                    }).catch(e => {
+                                        reject(e)
+                                    })
                                 } else if (response.caseless.has('www-authenticate') === 'www-authenticate') { // http auth
                                     let loopTarget = _.cloneDeep(target);
                                     let parsed = new parsers.WWW_Authenticate(response.caseless.get('www-authenticate'));
 
                                     if (parsed.scheme == 'Digest') { // Digest
                                         Object.assign(loopTarget.request.auth.digest, parsed.parms);
-                                        that.request(loopTarget)
+                                        that.request(loopTarget).then(res => {
+                                            reslove(res)
+                                        }).catch(e => {
+                                            reject(e)
+                                        });
                                     } else if (loopTarget.request.auth.type == 'ntlm') {
                                         loopTarget.request.auth.type == 'ntlm_close';
                                         Object.assign(loopTarget.request.auth.ntlm, {
                                             type2msg: ntlm.parseType2Message(response.caseless.get('www-authenticate')),
 
                                         });
-                                        that.request(loopTarget);
+                                        that.request(loopTarget).then(res => {
+                                            reslove(res)
+                                        }).catch(e => {
+                                            reject(e)
+                                        });
                                     } else {
                                         reslove(that.ConvertResult('success', 'success', {
                                             request: _request,
