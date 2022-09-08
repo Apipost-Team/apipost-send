@@ -964,7 +964,7 @@ class ApipostRequest {
                         this.proxy = ATools.completionHttpProtocol(this.proxy);
                         options.proxy = this.proxy;
                     }
-                    if (_.isString(this.proxyAuth && this.proxyAuth.length > 0)) {
+                    if (_.isString(this.proxyAuth) && this.proxyAuth.length > 0) {
                         options.headers['Proxy-Authorization'] = this.proxyAuth;
                     }
                     //#endregion
