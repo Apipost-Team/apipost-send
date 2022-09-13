@@ -400,20 +400,17 @@ class ApipostRequest {
                     }
 
                     if (item.type === 'File') {
-                        let useFileBase64 = true;
                         if (_.isArray(item?.value) && item.value.length > 0) {
                             item.value.forEach((path: any) => {
                                 try {
                                     if (item.key !== '') {
                                         forms.append(item.key, fs.createReadStream(path), options);
                                     }
-                                    useFileBase64 = false;
                                 } catch (error) {
 
                                 }
                             })
-                        }
-                        if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0 && useFileBase64) {
+                        }else if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0) {
                             let _file_names = typeof item.filename == 'string' ? item.filename.split('|') : [];
                             let _i = 0;
                             item.fileBase64.forEach((base64: any) => {
