@@ -372,12 +372,16 @@ class ApipostRequest {
     }
 
     getBase64Mime(dataurl: string) {//将base64转换为文件
-        let arr: any = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+        try {
+            let arr: any = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
 
-        if (mime) {
-            let mimeType = new MIMEType(mime);
-            return { ext: mimeType['_subtype'], mime: mimeType.essence };
-        } else {
+            if (mime) {
+                let mimeType = new MIMEType(mime);
+                return { ext: mimeType['_subtype'], mime: mimeType.essence };
+            } else {
+                return null;
+            }
+        } catch (error) {
             return null;
         }
     }
@@ -396,13 +400,26 @@ class ApipostRequest {
                     }
 
                     if (item.type === 'File') {
-                        if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0) {
+                        let useFileBase64 = true;
+                        if (_.isArray(item?.value) && item.value.length > 0) {
+                            item.value.forEach((path: any) => {
+                                try {
+                                    if (item.key !== '') {
+                                        forms.append(item.key, fs.createReadStream(path), options);
+                                    }
+                                    useFileBase64 = false;
+                                } catch (error) {
+
+                                }
+                            })
+                        }
+                        if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0 && useFileBase64) {
                             let _file_names = typeof item.filename == 'string' ? item.filename.split('|') : [];
                             let _i = 0;
                             item.fileBase64.forEach((base64: any) => {
-                                let fileBase64 = isBase64(base64, { allowMime: true }) ? base64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
+                                let fileBase64 = (isBase64(base64, { allowMime: true }) || base64.indexOf('base64,') > 0) ? base64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
 
-                                if (isBase64(fileBase64, { allowMime: true })) { // 云端
+                                if (isBase64(fileBase64, { allowMime: true }) || base64.indexOf('base64,') > 0) { // 云端
                                     let _mime: any = that.getBase64Mime(fileBase64);
                                     let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
@@ -429,18 +446,6 @@ class ApipostRequest {
                                 }
 
                                 _i++;
-                            })
-                        } else if (_.isArray(item?.value) && item.value.length > 0) {
-                            item.value.forEach((path: any) => {
-                                try {
-                                    if (fs.accessSync(path)) {
-                                        if (item.key !== '') {
-                                            forms.append(item.key, fs.createReadStream(path), options);
-                                        }
-                                    }
-                                } catch (error) {
-
-                                }
                             })
                         }
                     } else {
