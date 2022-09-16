@@ -410,7 +410,7 @@ class ApipostRequest {
 
                                 }
                             })
-                        }else if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0) {
+                        } else if (_.isArray(item?.fileBase64) && item.fileBase64.length > 0) {
                             let _file_names = typeof item.filename == 'string' ? item.filename.split('|') : [];
                             let _i = 0;
                             item.fileBase64.forEach((base64: any) => {
@@ -1073,27 +1073,35 @@ class ApipostRequest {
                                     })
                                 } else if (response.caseless.has('www-authenticate') === 'www-authenticate') { // http auth
                                     let loopTarget = _.cloneDeep(target);
-                                    let parsed = new parsers.WWW_Authenticate(response.caseless.get('www-authenticate'));
+                                    //fix bug 
+                                    try {
+                                        let parsed = new parsers.WWW_Authenticate(response.caseless.get('www-authenticate'));
 
-                                    if (parsed.scheme == 'Digest') { // Digest
-                                        Object.assign(loopTarget.request.auth.digest, parsed.parms);
-                                        that.request(loopTarget).then(res => {
-                                            reslove(res)
-                                        }).catch(e => {
-                                            reject(e)
-                                        });
-                                    } else if (loopTarget.request.auth.type == 'ntlm') {
-                                        loopTarget.request.auth.type == 'ntlm_close';
-                                        Object.assign(loopTarget.request.auth.ntlm, {
-                                            type2msg: ntlm.parseType2Message(response.caseless.get('www-authenticate')),
+                                        if (parsed.scheme == 'Digest') { // Digest
+                                            Object.assign(loopTarget.request.auth.digest, parsed.parms);
+                                            that.request(loopTarget).then(res => {
+                                                reslove(res)
+                                            }).catch(e => {
+                                                reject(e)
+                                            });
+                                        } else if (loopTarget.request.auth.type == 'ntlm') {
+                                            loopTarget.request.auth.type == 'ntlm_close';
+                                            Object.assign(loopTarget.request.auth.ntlm, {
+                                                type2msg: ntlm.parseType2Message(response.caseless.get('www-authenticate')),
 
-                                        });
-                                        that.request(loopTarget).then(res => {
-                                            reslove(res)
-                                        }).catch(e => {
-                                            reject(e)
-                                        });
-                                    } else {
+                                            });
+                                            that.request(loopTarget).then(res => {
+                                                reslove(res)
+                                            }).catch(e => {
+                                                reject(e)
+                                            });
+                                        } else {
+                                            reslove(that.ConvertResult('success', 'success', {
+                                                request: _request,
+                                                response: await that.formatResponseData(error, response, body)
+                                            }))
+                                        }
+                                    } catch (e) {
                                         reslove(that.ConvertResult('success', 'success', {
                                             request: _request,
                                             response: await that.formatResponseData(error, response, body)
