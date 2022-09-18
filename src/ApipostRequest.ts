@@ -146,10 +146,14 @@ class ApipostRequest {
                 case 'noauth':
                     break;
                 case 'kv':
-                    headers[auth.kv.key] = auth.kv.value;
+                    if (_.trim(auth.kv.key) != '') {
+                        headers[_.trim(auth.kv.key)] = auth.kv.value;
+                    }
                     break;
                 case 'bearer':
-                    headers['Authorization'] = "Bearer " + auth.bearer.key;
+                    if (_.trim(auth.bearer.key) != '') {
+                        headers['Authorization'] = "Bearer " + _.trim(auth.bearer.key);
+                    }
                     break;
                 case 'basic':
                     headers['Authorization'] = "Basic " + Base64.encode(auth.basic.username + ':' + auth.basic.password);
@@ -344,8 +348,8 @@ class ApipostRequest {
 
         if (arr instanceof Array) {
             arr.forEach(function (item) {
-                if (parseInt(item.is_checked) === 1) {
-                    headers[item.key] = item.value
+                if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
+                    headers[_.trim(item.key)] = item.value
                 }
             })
         }
