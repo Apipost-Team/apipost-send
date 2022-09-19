@@ -1,6 +1,6 @@
 {
   "name": "apipost-send",
-  "version": "0.0.32",
+  "version": "0.0.33",
   "description": "apipost-send",
   "main": "dist/index.js",
   "files": [
