@@ -349,7 +349,12 @@ class ApipostRequest {
         if (arr instanceof Array) {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
-                    headers[_.trim(item.key)] = item.value
+                    let headerKey=item.key;
+                    if(headerKey==='user-agent'){
+                      headerKey="User-Agent";
+                    }
+
+                    headers[_.trim(headerKey)] = item.value
                 }
             })
         }
@@ -1000,7 +1005,7 @@ class ApipostRequest {
                                     options.agentOptions['cert'] = Base64.atob(this.https.certificate);
                                 }
                             }
-                            // pfx证书 
+                            // pfx证书
                         } else if (this.https.hasOwnProperty('pfx') && _.isString(this.https.pfx) && this.https.pfx.length > 0) {
                             try {
                                 fs.accessSync(this.https.pfx);
@@ -1077,7 +1082,7 @@ class ApipostRequest {
                                     })
                                 } else if (response.caseless.has('www-authenticate') === 'www-authenticate') { // http auth
                                     let loopTarget = _.cloneDeep(target);
-                                    //fix bug 
+                                    //fix bug
                                     try {
                                         let parsed = new parsers.WWW_Authenticate(response.caseless.get('www-authenticate'));
 
