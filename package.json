@@ -1,6 +1,6 @@
 {
   "name": "apipost-send",
-  "version": "0.0.33",
+  "version": "0.0.34",
   "description": "apipost-send",
   "main": "dist/index.js",
   "files": [
@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "test": "jest",
-    "libs":" rollup -c rollup.config.js",
+    "libs": " rollup -c rollup.config.js",
     "build": "npm version patch && rollup -c rollup.config.js && npm publish"
   },
   "dependencies": {
