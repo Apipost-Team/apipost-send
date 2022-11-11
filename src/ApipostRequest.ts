@@ -949,7 +949,7 @@ class ApipostRequest {
 
                         // header头相关 +complated
                         "headers": {
-                            "user-agent": `ApipostRequest/` + that.version + ` (https://www.apipost.cn)`,
+                            "User-Agent": `ApipostRequest/` + that.version + ` (https://www.apipost.cn)`,
                             ...this.formatRequestHeaders(target.request.header.parameter, target.request.body.mode),
                             ...this.createAuthHeaders(target),
                             ...extra_headers
