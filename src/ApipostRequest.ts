@@ -1,4 +1,5 @@
 const FileType = require('file-type'),
+    urljoins = require("urljoins").urljoins,// add module for 7.0.8 https://www.npmjs.com/package/urljoins
     setCookie = require('set-cookie-parser'),
     isImage = require('is-image'),
     fs = require('fs'),
@@ -545,7 +546,7 @@ class ApipostRequest {
                     const item = arr[index];
                     if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
                         res = false;
-                        return res;
+                        break;
                     }
                 }
             } catch (e) {
@@ -1141,6 +1142,12 @@ class ApipostRequest {
                                 if (response.caseless.has('location') === 'location' && _.inRange(response.statusCode, 300, 399)) { // 3xx  重定向
                                     let loopTarget = _.cloneDeep(target);
                                     loopTarget.url = loopTarget.request.url = response.caseless.get('location');
+
+                                    // fix bug for 7.0.8
+                                    if (_.isString(_request_uris?.origin) && !_.startsWith(_.toLower(loopTarget.url), 'https://') && !_.startsWith(_.toLower(loopTarget.url), 'http://')) {
+                                        loopTarget.url = loopTarget.request.url = urljoins(_request_uris?.origin, loopTarget.url);
+                                    }
+
                                     that.request(loopTarget).then(res => {
                                         reslove(res)
                                     }).catch(e => {
@@ -1197,7 +1204,7 @@ class ApipostRequest {
                         }
                     });
 
-                    if (target.request.body.mode === 'form-data' && !that.isEmptyBodyData(target.request.body.parameter)) {
+                    if (target?.request?.body?.mode === 'form-data' && !that.isEmptyBodyData(target?.request?.body?.parameter)) {
                         that.formatFormDataBodys(r.form(), target.request.body.parameter);
                     }
                 }
