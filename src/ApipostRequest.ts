@@ -24,6 +24,8 @@ const FileType = require('file-type'),
     MIMEType = require("whatwg-mimetype"),
     isBase64 = require('is-base64'),
     ASideTools = require('apipost-inside-tools'),
+    { getObjFromRawHeaders } = require("rawheaders2obj"), // fix bug for 7.0.8
+    urlNode = require('url'), // fix bug for 7.0.8
     contentDisposition = require('content-disposition');
 // Apipost 发送模块
 class ApipostRequest {
@@ -69,7 +71,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.28';
+        this.version = '0.0.29';
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -326,7 +328,10 @@ class ApipostRequest {
 
     // 格式化headers参数
     formatRequestHeaders(arr: any[], mode: string) {
-        let headers: any = {};
+        let headers: any = {
+            "User-Agent": `PostmanRuntime-ApipostRuntime/1.1.0`, // fix bug for 7.0.8
+            "Cache-Control": "no-cache",// fix bug for 7.0.8;
+        };
 
         switch (mode) {
             case "json":
@@ -349,7 +354,16 @@ class ApipostRequest {
         if (arr instanceof Array) {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
-                    headers[_.trim(item.key)] = item.value
+                    let headerKey = item.key;
+
+                    // fix bug for 7.0.8
+                    _.mapKeys(headers, function (v, k) {
+                        if (_.toLower(k) == _.toLower(headerKey)) {
+                            delete headers[k]
+                        }
+                    });
+
+                    headers[_.trim(headerKey)] = item.value
                 }
             })
         }
@@ -365,7 +379,8 @@ class ApipostRequest {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1) {
                     if (item.key !== '') {
-                        bodys += item.key + '=' + item.value + '&';
+                        bodys += encodeURIComponent(item.key) + '=' + encodeURIComponent(item.value) + '&'; // fix bug for 7.0.8
+                        // bodys += item.key + '=' + item.value + '&';
                     }
                 }
             })
@@ -518,6 +533,23 @@ class ApipostRequest {
         }
 
         return _body;
+    }
+
+    // 检查form-data的body是否为空
+    // fix bug for 7.0.8
+    isEmptyBodyData(arr: any) {
+        let res: any = true;
+        if (arr instanceof Array) {
+            try {
+                arr.forEach(function (item: any) {
+                    if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
+                        res = false;
+                        throw BreakException;
+                    }
+                })
+            } catch (e) { }
+        }
+        return res;
     }
 
     // 格式化 请求Body 参数（用于脚本使用）
@@ -739,8 +771,10 @@ class ApipostRequest {
                 let _headers: any = _.cloneDeep(response.headers);
 
                 if (_headers && _.mapKeys(_headers, function (v: any, k: any) { return k.toLowerCase() }).hasOwnProperty('content-type')) {
-                    let mimeType: any = new MIMEType(_.mapKeys(_headers, function (v: any, k: any) { return k.toLowerCase() })['content-type']);
-                    res.resMime = { ext: mimeType['_subtype'], mime: mimeType.essence };
+                    try { // fix bug for 7.0.8
+                        let mimeType: any = new MIMEType(_.mapKeys(_headers, function (v: any, k: any) { return k.toLowerCase() })['content-type']);
+                        res.resMime = { ext: mimeType['_subtype'], mime: mimeType.essence };
+                    } catch (e) { }
                 }
 
                 res.fitForShow = "Monaco";
@@ -807,6 +841,11 @@ class ApipostRequest {
 
         res.stream.data = array;
 
+        // fix bug for 7.0.8
+        try {
+            response.headers = getObjFromRawHeaders(response.rawHeaders);
+        } catch (e) { }
+
         // 响应头 和 cookie
         if (response.headers) {
             res.resHeaders = res.headers = response.headers;
@@ -839,10 +878,23 @@ class ApipostRequest {
 
             // 响应文件名
             if (lowerHeaders.hasOwnProperty('content-disposition')) {
-                let disposition: any = contentDisposition.parse(lowerHeaders['content-disposition'])
+                try {
+                    let disposition: any = contentDisposition.parse(lowerHeaders['content-disposition'])
 
-                if (_.isObject(disposition) && _.isObject(disposition.parameters) && _.isString(disposition.parameters.filename)) {
-                    res.filename = disposition.parameters.filename;
+                    if (_.isObject(disposition) && _.isObject(disposition.parameters) && _.isString(disposition.parameters.filename)) {
+                        // res.filename = disposition.parameters.filename;
+                        try {
+                            res.filename = decodeURIComponent(disposition.parameters.filename); // fix bug for 7.0.8
+                        } catch (e) {
+                            res.filename = disposition.parameters.filename; // fix bug for 7.0.8
+                        }
+                    }
+                } catch (e) {
+                    if (res.resMime) {
+                        res.filename = `response_${this.target_id}.${res.resMime.ext}`;
+                    } else {
+                        res.filename = `response_${this.target_id}.txt`;
+                    }
                 }
             } else {
                 if (res.resMime) {
@@ -912,6 +964,14 @@ class ApipostRequest {
                     if (target.request.auth.type == 'ntlm') {
                         Object.assign(extra_opts, { forever: true });
                     }
+
+                    //fix bug for 7.0.8
+                    let uri: any = target.request.url;
+
+                    try {
+                        uri = encodeURI(target.request.url);
+                    } catch (e) { }
+
                     // 获取发送参数
                     let options: any = {
                         // 拓展部分(固定) +complated
@@ -928,7 +988,7 @@ class ApipostRequest {
                         // "allowContentTypeOverride": !0,
 
                         // 请求URL 相关 +complated
-                        "uri": target.request.url, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
+                        "uri": uri, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
                         // "baseUrl": "https://go.apipost.cn/", // 前置url，可以用此项决定环境前置URL
 
                         // query 相关+complated
@@ -944,7 +1004,7 @@ class ApipostRequest {
 
                         // header头相关 +complated
                         "headers": {
-                            "user-agent": `ApipostRequest/` + that.version + ` (https://www.apipost.cn)`,
+                            "User-Agent": `ApipostRequest/` + that.version + ` (https://www.apipost.cn)`,
                             ...this.formatRequestHeaders(target.request.header.parameter, target.request.body.mode),
                             ...this.createAuthHeaders(target),
                             ...extra_headers
@@ -1000,7 +1060,7 @@ class ApipostRequest {
                                     options.agentOptions['cert'] = Base64.atob(this.https.certificate);
                                 }
                             }
-                            // pfx证书 
+                            // pfx证书
                         } else if (this.https.hasOwnProperty('pfx') && _.isString(this.https.pfx) && this.https.pfx.length > 0) {
                             try {
                                 fs.accessSync(this.https.pfx);
@@ -1049,10 +1109,18 @@ class ApipostRequest {
                                 header: _headers
                             };
 
+                            // fix bug for 7.0.8
+                            let _request_uris: any = {};
+                            try {
+                                _request_uris = new UrlParse(options.uri);
+                            } catch (e) {
+                                _request_uris = _.cloneDeep(JSON5.parse(JSON5.stringify(urlNode.parse(options.uri))));
+                            }
+
                             if (_.isObject(response.request)) {
                                 _request = {
-                                    url: response.request.href,
-                                    uri: _.cloneDeep(JSON5.parse(JSON5.stringify(response.request.uri))),
+                                    url: options.uri,// fix bug for 7.0.8
+                                    uri: _request_uris,
                                     method: response.request.method,
                                     timeout: response.request.timeout,
                                     // qs:response.request.qs,
@@ -1067,7 +1135,7 @@ class ApipostRequest {
 
                             // 重定向的情况递归
                             if (that.followRedirect && that.requestloop < that.maxrequstloop) {
-                                if (response.caseless.has('location') === 'location') { // 3xx  重定向
+                                if (response.caseless.has('location') === 'location' && _.inRange(response.statusCode, 300, 399)) { // 3xx  重定向
                                     let loopTarget = _.cloneDeep(target);
                                     loopTarget.url = loopTarget.request.url = response.caseless.get('location');
                                     that.request(loopTarget).then(res => {
@@ -1077,7 +1145,7 @@ class ApipostRequest {
                                     })
                                 } else if (response.caseless.has('www-authenticate') === 'www-authenticate') { // http auth
                                     let loopTarget = _.cloneDeep(target);
-                                    //fix bug 
+                                    //fix bug
                                     try {
                                         let parsed = new parsers.WWW_Authenticate(response.caseless.get('www-authenticate'));
 
@@ -1126,7 +1194,7 @@ class ApipostRequest {
                         }
                     });
 
-                    if (target.request.body.mode === 'form-data') {
+                    if (target.request.body.mode === 'form-data' && !that.isEmptyBodyData(target.request.body.parameter)) {
                         that.formatFormDataBodys(r.form(), target.request.body.parameter);
                     }
                 }
