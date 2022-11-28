@@ -357,7 +357,7 @@ class ApipostRequest {
                     let headerKey = item.key;
 
                     // fix bug for 7.0.8
-                    _.mapKeys(headers, function (v, k) {
+                    _.mapKeys(headers, function (v: any, k: any) {
                         if (_.toLower(k) == _.toLower(headerKey)) {
                             delete headers[k]
                         }
@@ -550,7 +550,7 @@ class ApipostRequest {
                 }
             } catch (e) {
                 return res;
-             }
+            }
         }
         return res;
     }
