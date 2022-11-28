@@ -41,6 +41,7 @@
     "pm-event-util": "^1.0.2",
     "postman-request": "^2.88.1-postman.31",
     "querystring": "^0.2.1",
+    "rawheaders2obj": "^0.0.2",
     "rollup": "^2.74.1",
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-copy": "^3.4.0",
@@ -50,9 +51,9 @@
     "rollup-plugin-typescript2": "^0.31.2",
     "set-cookie-parser": "^2.5.0",
     "strip-json-comments": "^3.1.1",
+    "url": "^0.11.0",
     "url-parse": "^1.5.10",
     "whatwg-mimetype": "^3.0.0",
-    "rawheaders2obj": "^0.0.2",
     "www-authenticate": "^0.6.2"
   },
   "devDependencies": {

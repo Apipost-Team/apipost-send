@@ -541,13 +541,16 @@ class ApipostRequest {
         let res: any = true;
         if (arr instanceof Array) {
             try {
-                arr.forEach(function (item: any) {
+                for (let index = 0; index < arr.length; index++) {
+                    const item = arr[index];
                     if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
                         res = false;
-                        throw BreakException;
+                        return res;
                     }
-                })
-            } catch (e) { }
+                }
+            } catch (e) {
+                return res;
+             }
         }
         return res;
     }
