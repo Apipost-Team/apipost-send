@@ -15,7 +15,7 @@ jobs:
           node-version: 16
           registry-url: https://registry.npmjs.org/
       - name: Install dependencies and build
-        run: npx rollup -c rollup.config.js
+        run: npm i && npx rollup -c rollup.config.js
       - name: Publish package on NPM
         run: npm publish
         env:
