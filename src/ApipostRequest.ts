@@ -72,7 +72,7 @@ class ApipostRequest {
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.29';
+        this.version = '0.0.30'; // update version for 7.0.13
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -483,7 +483,8 @@ class ApipostRequest {
 
         if (ATools.isJson5(raw)) {
             try {
-                bodys = JSONbig.stringify(JSONbig.parse(stripJsonComments(raw)));
+                bodys = stripJsonComments(raw);
+                //                 bodys = JSONbig.stringify(JSONbig.parse(stripJsonComments(raw)));
             } catch (e) {
                 bodys = JSON.stringify(JSON5.parse(raw));
             }
@@ -1138,7 +1139,7 @@ class ApipostRequest {
                             }
 
                             // 重定向的情况递归
-                            if (that.followRedirect && that.requestloop < that.maxrequstloop) {
+                            if (that.followRedirect > 0 && that.requestloop < that.maxrequstloop) {
                                 if (response.caseless.has('location') === 'location' && _.inRange(response.statusCode, 300, 399)) { // 3xx  重定向
                                     let loopTarget = _.cloneDeep(target);
                                     loopTarget.url = loopTarget.request.url = response.caseless.get('location');
