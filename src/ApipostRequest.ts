@@ -29,6 +29,49 @@ const FileType = require('file-type'),
     urlNode = require('url'), // fix bug for 7.0.8
     contentDisposition = require('content-disposition');
 // Apipost 发送模块
+
+function encodeURI2(url: string): string {
+    //对已经编码的url不重复编码
+    var group = url.match(/([\w|\/|\.|\:|\-|\_|\?|\&]+)|((%[0-9|a-f]{2})+)/ig); //匹配满足url编码规范部分
+    if (!group) {
+        //整个url不满足编码规范
+        url = encodeURI(url);
+    } else {
+        //没有group直接encode
+        let postUrl = group.join(''); //将满足规范部分还原为url
+        if (postUrl != url) {
+            //有不满足条件的url编码规范内容
+            let pos = group[0].length;
+            let postPos = 0;
+            let needEncodeArr = [];
+            for (let i = 1; i < group.length; i++) {
+                postPos = url.indexOf(group[i], pos);
+                if (postPos > pos) {
+                    //有空隙
+                    needEncodeArr.push([pos, postPos]);
+                }
+                pos = postPos + group[i].length;
+            }
+
+            if (pos != url.length) {
+                //末尾还有数据
+                needEncodeArr.push([pos, url.length]);
+            }
+
+            //替换
+            let allArr = [];
+            pos = 0;
+            for (let i = 0; i < needEncodeArr.length; i++) {
+                allArr.push(url.substring(pos, needEncodeArr[i][0]));
+                allArr.push(encodeURI(url.substring(needEncodeArr[i][0], needEncodeArr[i][1])));
+                pos = needEncodeArr[i][1];
+            }
+            url = allArr.join('');
+        }
+    }
+
+    return url;
+}
 class ApipostRequest {
     requestloop: number;
     maxrequstloop: number;
@@ -974,7 +1017,8 @@ class ApipostRequest {
                     let uri: any = target.request.url;
 
                     try {
-                        uri = encodeURI(target.request.url);
+                        //需要截取出需要encode部分，只对需要部分encode，防止重复encode
+                        uri = encodeURI2(target.request.url);
                     } catch (e) { }
 
                     // 获取发送参数
