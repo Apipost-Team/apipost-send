@@ -66,6 +66,10 @@ function encodeURI2(url: string): string {
                 allArr.push(encodeURI(url.substring(needEncodeArr[i][0], needEncodeArr[i][1])));
                 pos = needEncodeArr[i][1];
             }
+            if (pos != url.length) {
+                //末尾还有数据
+                allArr.push(url.substring(pos, url.length));
+            }
             url = allArr.join('');
         }
     }
