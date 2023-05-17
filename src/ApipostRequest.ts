@@ -169,7 +169,7 @@ class ApipostRequest {
 
             fullPath = urls['pathname'] + '?' + qs.stringify(Object.assign(queries, paras));
             uri = baseUri + '?' + qs.stringify(Object.assign(queries, paras));
-        } else {
+        } else if(!_.isEmpty(paras)) {
             fullPath += '?' + qs.stringify(paras);
             uri += '?' + qs.stringify(paras);
         }
