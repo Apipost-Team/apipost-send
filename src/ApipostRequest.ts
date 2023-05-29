@@ -169,7 +169,7 @@ class ApipostRequest {
 
             fullPath = urls['pathname'] + '?' + qs.stringify(Object.assign(queries, paras));
             uri = baseUri + '?' + qs.stringify(Object.assign(queries, paras));
-        } else if(!_.isEmpty(paras)) {
+        } else if (!_.isEmpty(paras)) {
             fullPath += '?' + qs.stringify(paras);
             uri += '?' + qs.stringify(paras);
         }
@@ -1163,16 +1163,23 @@ class ApipostRequest {
                             };
 
                             // fix bug for 7.0.8
+                            // fix bug for 7.1.16
+                            let _request_url = _.get(response, 'request.uri.href');
+
+                            if (!_.isString(_request_url)) {
+                                _request_url = options.uri;
+                            }
+
                             let _request_uris: any = {};
                             try {
-                                _request_uris = new UrlParse(options.uri);
+                                _request_uris = new UrlParse(_request_url);
                             } catch (e) {
-                                _request_uris = _.cloneDeep(JSON5.parse(JSON5.stringify(urlNode.parse(options.uri))));
+                                _request_uris = _.cloneDeep(JSON5.parse(JSON5.stringify(urlNode.parse(_request_url))));
                             }
 
                             if (_.isObject(response.request)) {
                                 _request = {
-                                    url: options.uri,// fix bug for 7.0.8
+                                    url: _request_url,// fix bug for 7.0.8
                                     uri: _request_uris,
                                     method: response.request.method,
                                     timeout: response.request.timeout,
