@@ -976,8 +976,7 @@ class ApipostRequest {
                 }
 
                 // 获取认证请求头
-                const authHeaders: any = {}
-                that.createAuthHeaders(authHeaders, target);
+                const authHeaders: any = that.createAuthHeaders(target);
 
                 // 初始化请求配置
                 const options = {
