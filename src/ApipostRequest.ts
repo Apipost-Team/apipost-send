@@ -783,7 +783,7 @@ class ApipostRequest {
             response: {
                 "target_id": target_id,
                 "responseTime": _.get(response, 'timings.phases.total') || '0.00',
-                "responseSize": _.floor((this.getCaseInsensitive(_.get(response, 'headers'), 'content-length') || String(_.get(response, 'body')).length) / 1024, 2),
+                "responseSize": _.round((this.getCaseInsensitive(_.get(response, 'headers'), 'content-length') || String(_.get(response, 'body')).length) / 1024, 2),
                 "resposneAt": this.resposneAt(),
                 "netWork": {
                     "agent": _.get(response, `request.options.agent.${protocol}.proxyOptions`) || null,
