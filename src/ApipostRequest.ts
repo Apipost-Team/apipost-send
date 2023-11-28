@@ -679,7 +679,7 @@ class ApipostRequest {
     }
 
     // 不区分大小写的 _.set
-    etCaseInsensitive(obj: any, path: any, value: any) {
+    setCaseInsensitive(obj: any, path: any, value: any) {
         if (typeof path === 'string') {
             // 把点路径转换为数组形式，以处理嵌套对象
             path = _.toPath(path);
