@@ -1,15 +1,12 @@
 const FileType = require('file-type'),
-    urljoins = require("urljoins").urljoins,// add module for 7.0.8 https://www.npmjs.com/package/urljoins
     setCookie = require('set-cookie-parser'),
     isImage = require('is-image'),
     fs = require('fs'),
     path = require('path'),
     isSvg = require('is-svg'),
-    request = require('postman-request'),
     qs = require('querystring'),
     JSON5 = require('json5'),
     stripJsonComments = require("strip-json-comments"),
-    JSONbig = require('json-bigint'),
     ATools = require('apipost-tools'),
     Base64 = require('js-base64'),
     CryptoJS = require("crypto-js"),
@@ -25,66 +22,16 @@ const FileType = require('file-type'),
     MIMEType = require("whatwg-mimetype"),
     isBase64 = require('is-base64'),
     ASideTools = require('apipost-inside-tools'),
-    { getObjFromRawHeaders } = require("rawheaders2obj"), // fix bug for 7.0.8
-    urlNode = require('url'), // fix bug for 7.0.8
-    contentDisposition = require('content-disposition');
+    { minimatch } = require('minimatch'),
+    got = require('apipost-got'),
+    tunnel = require('tunnel'),
+    Validator = require('jsonschema').validate,
+    pkginfo = require('pkginfo')(module),
+    mime = require('mime'),
+    FormData = require('form-data');
 // Apipost 发送模块
-
-function encodeURI2(url: string): string {
-    //对已经编码的url不重复编码
-    var group = url.match(/([\w|\/|\.|\:|\-|\_|\?|\&]+)|((%[0-9|a-f]{2})+)/ig); //匹配满足url编码规范部分
-    if (!group) {
-        //整个url不满足编码规范
-        url = encodeURI(url);
-    } else {
-        //没有group直接encode
-        let postUrl = group.join(''); //将满足规范部分还原为url
-        if (postUrl != url) {
-            //有不满足条件的url编码规范内容
-            let pos = group[0].length;
-            let postPos = 0;
-            let needEncodeArr = [];
-            for (let i = 1; i < group.length; i++) {
-                postPos = url.indexOf(group[i], pos);
-                if (postPos > pos) {
-                    //有空隙
-                    needEncodeArr.push([pos, postPos]);
-                }
-                pos = postPos + group[i].length;
-            }
-
-            if (pos != url.length) {
-                //末尾还有数据
-                needEncodeArr.push([pos, url.length]);
-            }
-
-            //替换
-            let allArr = [];
-            pos = 0;
-            for (let i = 0; i < needEncodeArr.length; i++) {
-                allArr.push(url.substring(pos, needEncodeArr[i][0]));
-                allArr.push(encodeURI(url.substring(needEncodeArr[i][0], needEncodeArr[i][1])));
-                pos = needEncodeArr[i][1];
-            }
-            if (pos != url.length) {
-                //末尾还有数据
-                allArr.push(url.substring(pos, url.length));
-            }
-            url = allArr.join('');
-        }
-    }
-
-    return url;
-}
 class ApipostRequest {
-    requestloop: number;
-    maxrequstloop: number;
-    followRedirect: any;
-    strictSSL: boolean;
-    https: any;
-    timeout: number;
-    proxy: any;
-    proxyAuth: any;
+    option: any;
     version: string;
     jsonschema: any;
     target_id: any;
@@ -97,29 +44,15 @@ class ApipostRequest {
             opts = {};
         }
 
-        this.requestloop = 0; // 初始化重定向
+        this.option = opts; // 初始化重定向
 
         // 配置项
-        this.maxrequstloop = parseInt(opts.maxrequstloop) > 0 ? parseInt(opts.maxrequstloop) : 5; // 最大重定向次数
-        this.followRedirect = opts.hasOwnProperty('followRedirect') ? opts.followRedirect : 1; // 是否允许重定向 1 允许 -1 不允许
-        this.strictSSL = !!opts.strictSSL ?? 0;
-        this.https = opts.https ?? { // 证书相关
-            "rejectUnauthorized": -1, // 忽略错误证书 1 -1
-            "certificateAuthority": '', // ca证书地址
-            "certificate": '', // 客户端证书地址
-            "key": '', //客户端证书私钥文件地址
-            "pfx": '', // pfx 证书地址
-            "passphrase": '' // 私钥密码
-        };
-        this.timeout = parseInt(opts.timeout) >= 0 ? parseInt(opts.timeout) : 0;
-        this.proxy = opts?.proxy || '';
-        this.proxyAuth = opts?.proxyAuth ?? '';
         this.target_id = opts.target_id;
         this.isCloud = opts.hasOwnProperty('isCloud') ? (parseInt(opts.isCloud) > 0 ? 1 : -1) : -1; // update 0703
         this.requestLink = null;
 
         // 基本信息
-        this.version = '0.0.30'; // update version for 7.0.13
+        this.version = '0.0.100'; // update version for 7.0.13
         this.jsonschema = JSON.parse(fs.readFileSync(path.join(__dirname, './apipost-http-schema.json'), 'utf-8'));
     }
 
@@ -242,7 +175,7 @@ class ApipostRequest {
                         response = hashFunc(ha1 + ':' + auth.digest.nonce + ':' + ha2).toString();
                     }
 
-                    headers['Authorization'] = "Digest username=\"" + auth.digest.username + "\", realm=\"" + auth.digest.realm + "\", nonce=\"" + auth.digest.nonce + "\", uri=\"" + fullPath + "\", algorithm=\"" + auth.digest.algorithm + "\", qop=" + auth.digest.qop + ",nc=" + (auth.digest.nc || '00000001') + ", cnonce=\"" + cnonce + "\", response=\"" + response + "\", opaque=\"" + auth.digest.opaque + "\"";
+                    headers['Authorization'] = "Digest username=\"" + auth.digest.username + "\", realm=\"" + auth.digest.realm + "\", nonce=\"" + auth.digest.nonce + "\", uri=\"" + fullPath + "\", algorithm=\"" + auth.digest.algorithm + "\", qop=\"" + auth.digest.qop + "\",nc=" + (auth.digest.nc || '00000001') + ", cnonce=\"" + cnonce + "\", response=\"" + response + "\", opaque=\"" + auth.digest.opaque + "\"";
                     break;
                 case 'hawk':
                     let options = {
@@ -309,19 +242,6 @@ class ApipostRequest {
                         })
                     });
                     break;
-
-                case 'ntlm_close':
-                    Object.assign(headers, {
-                        'Connection': 'close',
-                        'Authorization': ntlm.createType3Message(auth.ntlm_close.type2msg, {
-                            url: uri,
-                            username: auth.ntlm.username,
-                            password: auth.ntlm.password,
-                            workstation: auth.ntlm.workstation,
-                            domain: auth.ntlm.domain
-                        })
-                    });
-                    break;
                 case 'oauth1':
                     let hmac = 'sha1';
 
@@ -359,7 +279,6 @@ class ApipostRequest {
                         oauth_callback: auth.oauth1.callback
                     }
 
-                    // console.log(request_data)
                     const token = {
                         key: auth.oauth1.token,
                         secret: auth.oauth1.tokenSecret,
@@ -377,8 +296,8 @@ class ApipostRequest {
     // 格式化headers参数
     formatRequestHeaders(arr: any[], mode: string) {
         let headers: any = {
-            "User-Agent": `PostmanRuntime-ApipostRuntime/1.1.0`, // fix bug for 7.0.8
-            "Cache-Control": "no-cache",// fix bug for 7.0.8;
+            "User-Agent": `PostmanRuntime-ApipostRuntime/1.1.0`,
+            "Cache-Control": "no-cache"
         };
 
         switch (mode) {
@@ -404,7 +323,6 @@ class ApipostRequest {
                 if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
                     let headerKey = item.key;
 
-                    // fix bug for 7.0.8
                     _.mapKeys(headers, function (v: any, k: any) {
                         if (_.toLower(k) == _.toLower(headerKey)) {
                             delete headers[k]
@@ -427,7 +345,7 @@ class ApipostRequest {
             arr.forEach(function (item) {
                 if (parseInt(item.is_checked) === 1) {
                     if (item.key !== '') {
-                        bodys += encodeURIComponent(item.key) + '=' + encodeURIComponent(item.value) + '&'; // fix bug for 7.0.8
+                        bodys += encodeURIComponent(item.key) + '=' + encodeURIComponent(item.value) + '&';
                         // bodys += item.key + '=' + item.value + '&';
                     }
                 }
@@ -491,7 +409,7 @@ class ApipostRequest {
                                         fs.accessSync(_temp_file);
                                     } catch (err) {
                                         try {
-                                            fs.mkdirSync(_temp_file)
+                                            fs.mkdirSync(_temp_file, { recursive: true })
                                         } catch (e) { }
                                     }
 
@@ -557,51 +475,84 @@ class ApipostRequest {
 
     // 格式化 请求Body 参数
     formatRequestBodys(target: any) {
-        let _body = {};
+        let _body: any = {}, that: any = this;
 
-        switch (target.request.body.mode) {
+        switch (_.get(target, 'request.body.mode')) {
             case "none":
                 break;
             case "form-data":
+                try {
+                    const form: any = new FormData();
+                    this.formatFormDataBodys(form, target.request.body.parameter);
+
+                    _body = {
+                        body: form,
+                        header: form.getHeaders()
+                    }
+                } catch (e) {
+                    _body = {
+                        error: String(e)
+                    }
+                }
                 break;
             case "urlencoded":
                 _body = {
-                    form: this.formatUrlencodeBodys(target.request.body.parameter)
+                    body: this.formatUrlencodeBodys(target.request.body.parameter),
+                    header: {
+                        "content-type": `application/x-www-form-urlencoded`
+                    }
+                };
+                break;
+            case "binary":
+                const binary: any = _.get(target, 'request.body.binary');
+
+                if (_.isObject(binary)) {
+                    const filePath: any = String(_.get(binary, 'file_path'));
+                    const base64Data: any = String(_.get(binary, 'data_url'));
+
+                    try {
+                        if (base64Data != '' && base64Data.indexOf('base64,') > 0) {
+                            if (isBase64(base64Data, { allowMime: true })) {
+
+                                _body = {
+                                    body: Buffer.from(base64Data.replace(/^data:(.+?);base64,/, ''), 'base64'),
+                                    header: {
+                                        "content-type": _.get(that.getBase64Mime(base64Data), 'mime') || 'application/octet-stream'
+                                    }
+                                };
+                            }
+                        } else if (filePath != '') {
+                            const binaryBuffer = fs.readFileSync(filePath);
+
+                            if (_.isBuffer(binaryBuffer)) {
+                                _body = {
+                                    body: binaryBuffer,
+                                    header: {
+                                        "content-type": mime.getType(filePath) || 'application/octet-stream'
+                                    }
+                                };
+                            }
+                        }
+                    } catch (e) {
+                        _body = {
+                            error: String(e)
+                        }
+                    }
                 }
+
                 break;
             case "json":
                 _body = {
                     body: this.formatRawJsonBodys(target.request.body.raw)
-                }
+                };
                 break;
             default:
                 _body = {
                     body: this.formatRawBodys(target.request.body.raw)
-                }
+                };
                 break;
         }
-
         return _body;
-    }
-
-    // 检查form-data的body是否为空
-    // fix bug for 7.0.8
-    isEmptyBodyData(arr: any) {
-        let res: any = true;
-        if (arr instanceof Array) {
-            try {
-                for (let index = 0; index < arr.length; index++) {
-                    const item = arr[index];
-                    if (parseInt(item.is_checked) === 1 && _.trim(item.key) != '') {
-                        res = false;
-                        break;
-                    }
-                }
-            } catch (e) {
-                return res;
-            }
-        }
-        return res;
     }
 
     // 格式化 请求Body 参数（用于脚本使用）
@@ -613,9 +564,9 @@ class ApipostRequest {
             }
         };
 
-        let arr = _.cloneDeep(target.request.body.parameter);
+        let arr = _.cloneDeep(_.get(target, 'request.body.parameter'));
 
-        switch (target.request.body.mode) {
+        switch (_.get(target, 'request.body.mode')) {
             case "none":
                 _body = {
                     'request_bodys': '',
@@ -704,571 +655,625 @@ class ApipostRequest {
         return h + ':' + m + ':' + s;
     }
 
-    // 处理 响应参数
-    async formatResponseData(error: any, response: any, body: any) {
-        let _agent: string = 'Desktop-Agent';
 
-        if (this.isCloud > 0) {
-            _agent = 'Cloud-Agent';
-        }
-
-        let netWork: any = {
-            agent: _agent,
-            address: {}
-        };
-
-        let client: any = _.isObject(response.client) ? response.client : response.client;
-
-        if (_.isObject(client)) {
-            // localAddress
-            if (_.isString(client.localAddress)) {
-                _.assign(netWork.address, {
-                    local: {
-                        address: client.localAddress,
-                        port: client.localPort
-                    }
-                })
-            }
-
-            // remoteAddress
-            if (_.isString(client.remoteAddress)) {
-                _.assign(netWork.address, {
-                    remote: {
-                        address: client.remoteAddress,
-                        family: client.remoteFamily,
-                        port: client.remotePort
-                    }
-                })
-            }
-        }
-
-        let res: any = {
-            target_id: this.target_id,
-            // client:{}, // 请求 client 属性
-            // elapsedTime:0, // 请求总时间 （ms）
-            responseTime: 0, // 请求总时间（elapsedTime 的别名） （ms）
-            responseSize: 0, // 响应体大小（KB）
-            resposneAt: this.resposneAt(), // 请求的时分秒
-            netWork: netWork,
-            // statusObj : {
-            //     code:200,
-            //     message:"OK"
-            // }, // 响应状态
-            status: "OK", // 兼容postman
-            code: 200,  // 兼容postman
-            timingPhases: {}, // 响应时间详情 （ms）
-            resHeaders: {}, // 响应头
-            headers: {}, // 响应头 兼容旧版
-            header: [], // 响应头 ,数组格式 兼容postman
-            fitForShow: "Monaco",// 是否适合展示的方式 [Monaco, Pdf, Image, Other（其他附件）]
-            resMime: {},// 响应类型
-            rawCookies: [], // 响应 cookie
-            cookies: {}, // 响应 cookie 兼容旧版
-            rawBody: "", // 响应体 fitForShow === Monaco 为响应内容，否则为响应文件存储路径
-            base64Body: "", // 响应体的 base64 编码格式 // 0703
-            stream: {   // 兼容postman
-                "type": "Buffer",
-                "data": []
-            },
-            raw: { //  兼容旧版
-                status: 200,
-                responseTime: 0,
-                type: 'html',
-                responseText: '',
-            },
-            json: {}
-        };
-
-        // 响应时间细节
-        if (response.timingPhases) {
-            res.timingPhases = response.timingPhases;
-        }
-
-        // 请求总时间
-        if (response.elapsedTime >= 0) {
-            res.responseTime = response.elapsedTime;
-        }
-
-        // 响应码
-        // res.statusObj = {
-        //     code:response.statusCode,
-        //     message:response.statusMessage
-        // }
-
-        res.code = response.statusCode;
-        res.status = response.statusMessage;
-        res.raw.status = res.code; //响应状态码（200、301、404等） // fixed bug
-        res.raw.responseTime = response.elapsedTime; //响应时间（毫秒）
-
-        // 响应类型和 内容
-        let resMime: any = await FileType.fromBuffer(body);
-
-        if (isSvg(body.toString())) {
-            res.resMime = { ext: "svg", mime: "image/svg+xml" };
-            res.fitForShow = "Image";
-
-            if (this.isCloud < 1) {
-                res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.svg');
-                fs.writeFileSync(res.rawBody, body);
-            } else {
-                res.rawBody = '';
-            }
-
-            // 拼装 raw
-            res.raw.type = 'svg'
-            res.raw.responseText = '';
-        } else {
-            //MIMEType
-            if (!resMime) {
-                let _headers: any = _.cloneDeep(response.headers);
-
-                if (_headers && _.mapKeys(_headers, function (v: any, k: any) { return k.toLowerCase() }).hasOwnProperty('content-type')) {
-                    try { // fix bug for 7.0.8
-                        let mimeType: any = new MIMEType(_.mapKeys(_headers, function (v: any, k: any) { return k.toLowerCase() })['content-type']);
-                        res.resMime = { ext: mimeType['_subtype'], mime: mimeType.essence };
-                    } catch (e) { }
-                }
-
-                res.fitForShow = "Monaco";
-                res.rawBody = body.toString();
-
-                if (ATools.isJson5(res.rawBody)) {
-                    try {
-                        res.json = JSONbig.parse(stripJsonComments(res.rawBody));
-                    } catch (e) {
-                        res.json = JSON5.parse(res.rawBody);
-                    }
-                }
-
-                // 拼装 raw
-                if (res.resMime && res.resMime.ext) {
-                    res.raw.type = res.resMime.ext
-                } else {
-                    res.raw.type = ATools.isJson(res.rawBody) ? 'json' : ATools.isJsonp(res.rawBody) ? 'jsonp' : 'html'//响应类型（json等）
-                }
-
-                res.raw.responseText = res.rawBody;
-            } else {
-                res.resMime = resMime;
-
-                if (res.resMime.ext === 'pdf') {
-                    res.fitForShow = "Pdf";
-                } else if (isImage('test.' + res.resMime.ext)) {
-                    res.fitForShow = "Image";
-                } else if (res.resMime.ext === 'xml') {
-                    res.fitForShow = "Monaco";
-                } else {
-                    res.fitForShow = "Other";
-                }
-
-                // 拼装 raw
-                res.raw.type = res.resMime.ext
-
-                if (res.resMime.ext === 'xml') {
-                    res.raw.responseText = res.rawBody = body.toString();
-                } else {
-                    res.raw.responseText = '';
-
-                    if (this.isCloud < 1) {
-                        res.rawBody = path.join(path.resolve(this.getCachePath()), 'response_' + this.target_id + '.' + resMime.ext);
-                        fs.writeFileSync(res.rawBody, body);
-                    } else {
-                        res.rawBody = '';
-                    }
-                }
-            }
-        }
-
-        let array: any = [];
-
-        for (let i = 0; i < response.body.length; i++) {
-            array[i] = response.body[i];
-        }
-
-        if (res.resMime) {
-            res.base64Body = `data:${res.resMime['mime']};base64,${response.body.toString('base64')}`;
-        } else {
-            res.base64Body = `data:text/plain;base64,${response.body.toString('base64')}`;
-        }
-
-        res.stream.data = array;
-
-        // fix bug for 7.0.8
+    // 不区分大小写的 _.get
+    getCaseInsensitive(object: any, keyToFind: any) {
         try {
-            response.headers = getObjFromRawHeaders(response.rawHeaders);
+            // 先将要查找的键转换成小写
+            const lowerKey: any = keyToFind.toLowerCase();
+
+            if (!_.isObject(object)) {
+                return undefined;
+            }
+
+            // 在对象的所有键中查找
+            for (const key in object) {
+                if (key.toLowerCase() === lowerKey) {
+                    return object[key];
+                }
+            }
         } catch (e) { }
 
-        // 响应头 和 cookie
-        if (response.headers) {
-            res.resHeaders = res.headers = response.headers;
+        // 如果没有找到，返回undefined
+        return undefined;
+    }
 
-            let lowerHeaders: any = {};
+    // 不区分大小写的 _.set
+    etCaseInsensitive(obj: any, path: any, value: any) {
+        if (typeof path === 'string') {
+            // 把点路径转换为数组形式，以处理嵌套对象
+            path = _.toPath(path);
 
-            for (let k in response.headers) {
-                if (_.isString(k)) {
-                    lowerHeaders[k.toLowerCase()] = response.headers[k];
-                }
-            }
+            // 变量lastKey持有最后一个键，我们需要在后面步骤中用它来设置值
+            const lastKey: any = path.pop();
 
-            // 响应 cookie
-            if (lowerHeaders['set-cookie'] instanceof Array) {
-                res.resCookies = setCookie.parse(lowerHeaders['set-cookie']);
+            // 寻找路径中匹配的键，不区分大小写
+            path = path.map((segment: any) => {
+                const key: any = Object.keys(obj).find(
+                    objKey => objKey.toLowerCase() === segment.toLowerCase()
+                );
+                return key || segment;
+            });
 
-                for (let c in res.resCookies) {
-                    res.cookies[res.resCookies[c].name] = res.resCookies[c].value;
-                }
-            }
+            // 把最后一个键加回到路径中
+            path.push(lastKey);
 
-            res.rawCookies = res.resCookies; // 此参数是为了兼容postman
+            // 使用lodash的_.set来设置值
+            _.set(obj, path, value);
+        } else {
+            // 如果path不是字符串，假设它是正确的路径数组
+            _.set(obj, path, value);
+        }
+    }
 
-            if (lowerHeaders.hasOwnProperty('content-length')) {
-                res.responseSize = parseFloat((lowerHeaders['content-length'] / 1024).toFixed(2));
-            } else {
-                res.responseSize = parseFloat((body.toString().length / 1024).toFixed(2));
-            }
+    // 生成digest认证头
+    getDigestAuthString(target: any, method: any, fullPath: any, digest: any) {
+        let ha1: any = '', ha2: any = '', response: any = '', hashFunc: any = CryptoJS.MD5;
+        let entityBody = _.get(this.formatRequestBodys(target), 'body') || '';
 
+        if (digest.algorithm == 'MD5' || digest.algorithm == 'MD5-sess') {
+            hashFunc = CryptoJS.MD5;
+        } else if (digest.algorithm == 'SHA-256' || digest.algorithm == 'SHA-256-sess') {
+            hashFunc = CryptoJS.SHA256;
+        } else if (digest.algorithm == 'SHA-512' || digest.algorithm == 'SHA-512-sess') {
+            hashFunc = CryptoJS.SHA512;
+        }
 
-            // 响应文件名
-            if (lowerHeaders.hasOwnProperty('content-disposition')) {
-                try {
-                    let disposition: any = contentDisposition.parse(lowerHeaders['content-disposition'])
+        let cnonce: any = digest.cnonce == '' ? 'apipost' : digest.cnonce;
 
-                    if (_.isObject(disposition) && _.isObject(disposition.parameters) && _.isString(disposition.parameters.filename)) {
-                        // res.filename = disposition.parameters.filename;
-                        try {
-                            res.filename = decodeURIComponent(disposition.parameters.filename); // fix bug for 7.0.8
-                        } catch (e) {
-                            res.filename = disposition.parameters.filename; // fix bug for 7.0.8
+        if (digest.algorithm.substr(-5) == '-sess') {
+            ha1 = hashFunc(hashFunc(digest.username + ':' + digest.realm + ':' + digest.password).toString() + ':' + digest.nonce + ':' + cnonce).toString();
+        } else {
+            ha1 = hashFunc(digest.username + ':' + digest.realm + ':' + digest.password).toString();
+        }
+
+        if (digest.qop != 'auth-int') {
+            ha2 = hashFunc(method + ':' + fullPath).toString();
+        } else if (digest.qop == 'auth-int') {
+            ha2 = hashFunc(method + ':' + fullPath + ':' + hashFunc(entityBody).toString()).toString();
+        }
+
+        if (digest.qop == 'auth' || digest.qop == 'auth-int') {
+            response = hashFunc(ha1 + ':' + digest.nonce + ':' + (digest.nc || '00000001') + ':' + cnonce + ':' + digest.qop + ':' + ha2).toString();
+        } else {
+            response = hashFunc(ha1 + ':' + digest.nonce + ':' + ha2).toString();
+        }
+
+        return "Digest username=\"" + digest.username + "\", realm=\"" + digest.realm + "\", nonce=\"" + digest.nonce + "\", uri=\"" + fullPath + "\", algorithm=\"" + digest.algorithm + "\", qop=\"" + digest.qop + "\",nc=" + (digest.nc || '00000001') + ", cnonce=\"" + cnonce + "\", response=\"" + response + "\", opaque=\"" + digest.opaque + "\"";
+    }
+
+    //生成ntlm认证头
+    getNTLMAuthString(target: any, type2msg: any, ntlm: any) {
+        const { uri } = this.setQueryString(target.request.url, this.formatQueries(target.request.query.parameter));
+        return ntlm.createType3Message(type2msg, {
+            url: uri,
+            username: ntlm.username,
+            password: ntlm.password,
+            workstation: ntlm.workstation,
+            domain: ntlm.domain
+        })
+    }
+
+    // 处理 响应参数
+    async formatResponseData(error: any, response: any, target: any) {
+        const uri: any = _.get(response, 'request.options.url');
+        const protocol: any = _.get(uri, 'protocol') == 'https:' ? 'https' : 'http';
+        const target_id: any = _.get(target, 'target_id');
+        const requestBody: any = this.formatDisplayRequestBodys(target);
+
+        const result: any = {
+            error: error,
+            request: {
+                "url": String(uri),
+                "uri": uri,
+                "method": _.get(response, 'request.options.method'),
+                "timeout": parseInt(_.get(response, 'request.options.timeout.request')) || 0,
+                "contentType": this.getCaseInsensitive(_.get(response, 'request.options.headers') || {}, 'content-type') || 'none',
+                "header": _.map(_.get(response, 'request.options.headers'), (value: any, key: any) => ({ key, value })),
+                "proxy": _.get(response, `request.options.agent.${protocol}.proxyOptions`) || null,
+                "httpVersion": _.get(response, 'httpVersion'),
+                "request_headers": _.get(response, 'request.options.headers'),
+                "request_bodys": _.get(requestBody, 'raw'),
+                "body": _.get(requestBody, 'raw')
+            },
+            response: {}
+        }
+        _.assign(result, {
+            response: {
+                "target_id": target_id,
+                "responseTime": _.get(response, 'timings.phases.total') || '0.00',
+                "responseSize": _.floor((this.getCaseInsensitive(_.get(response, 'headers'), 'content-length') || String(_.get(response, 'body')).length) / 1024, 2),
+                "resposneAt": this.resposneAt(),
+                "netWork": {
+                    "agent": _.get(response, `request.options.agent.${protocol}.proxyOptions`) || null,
+                    "address": {
+                        "remote": {
+                            "address": _.get(response, 'ip')
                         }
                     }
-                } catch (e) {
-                    if (res.resMime) {
-                        res.filename = `response_${this.target_id}.${res.resMime.ext}`;
-                    } else {
-                        res.filename = `response_${this.target_id}.txt`;
-                    }
-                }
-            } else {
-                if (res.resMime) {
-                    res.filename = `response_${this.target_id}.${res.resMime.ext}`;
-                } else {
-                    res.filename = `response_${this.target_id}.txt`;
-                }
+                },
+                "status": _.get(response, 'statusMessage') || 'OK',
+                "code": _.get(response, 'statusCode') || 200,
+                "timingPhases": _.get(response, 'timings.phases') || {},
+                "resHeaders": _.get(response, 'headers') || {},
+                "headers": _.get(response, 'headers') || {},
+                "header": _.map(_.get(response, 'headers'), (value: any, key: any) => ({ key, value })) || [],
+                "rawCookies": [],
+                "resCookies": [],
+                "cookies": {},
+                "rawBody": String(_.get(response, 'body')) || '',
+                "stream": {
+                    "type": "Buffer",
+                    "data": _.get(response, 'body')
+                },
+                "fitForShow": "Monaco",
+                "resMime": {
+                    "ext": "json",
+                    "mime": "application/json"
+                },
+                "raw": {
+                    "status": _.get(response, 'statusMessage'),
+                    "responseTime": _.get(response, 'timings.phases.total'),
+                    "type": "json",
+                    "responseText": String(_.get(response, 'body'))
+                },
+                "json": {},
+                "filename": ``
             }
+        });
 
-            // 响应头
-            let header: any = [];
-            for (let k in response.headers) {
-                if (response.headers[k] instanceof Array) {
-                    for (let h of response.headers[k]) {
-                        header.push({
-                            "key": k,
-                            "value": h
+        // 设置 cookie
+        if (_.isArray(this.getCaseInsensitive(_.get(response, 'headers'), 'set-cookie'))) {
+            const rawCookies: any = setCookie.parse(this.getCaseInsensitive(_.get(response, 'headers'), 'set-cookie'));
+            _.assign(result.response, {
+                rawCookies,
+                resCookies: rawCookies
+            })
+        }
+
+        if (_.isArray(_.get(result, `response.rawCookies`))) {
+            _.assign(result.response, {
+                cookies: _.reduce(_.get(result, `response.rawCookies`), (result: any, cookie: any) => {
+                    result[cookie.name] = cookie.value;
+                    return result;
+                }, {})
+            })
+        }
+
+        // 设置json
+        try {
+            _.assign(result.response, {
+                json: JSON5.parse(String(_.get(response, 'body')))
+            });
+        } catch (e) { }
+
+        // 响应类型
+        const resMime: any = {
+            "ext": "json",
+            "mime": "application/json"
+        }
+
+        try {
+            if (isSvg(_.get(response, 'body').toString())) {
+                _.assign(resMime, {
+                    ext: "svg",
+                    mime: "image/svg+xml"
+                })
+
+                _.assign(result.response, {
+                    fitForShow: 'Image'
+                })
+            } else {
+                const fileTypeMime: any = await FileType.fromBuffer(_.get(response, 'body'))
+
+                if (_.isObject(fileTypeMime)) {
+                    _.assign(resMime, fileTypeMime)
+
+                    if (isImage(`test.${resMime.ext}`)) {
+                        _.assign(result.response, {
+                            fitForShow: 'Image'
+                        })
+                    } else if (resMime.ext == 'pdf') {
+                        _.assign(result.response, {
+                            fitForShow: 'Pdf'
+                        })
+                    } else {
+                        _.assign(result.response, {
+                            fitForShow: 'Other'
                         })
                     }
                 } else {
-                    header.push({
-                        "key": k,
-                        "value": response.headers[k]
+                    const contentType: any = this.getCaseInsensitive(_.get(response, 'headers') || {}, 'content-type') || ''
+
+                    if (!_.isEmpty(contentType)) {
+                        _.assign(resMime, {
+                            ext: mime.getExtension(contentType),
+                            mime: mime.getType(mime.getExtension(contentType))
+                        })
+                    } else {
+                        const ext = ATools.isJson(result.response.rawBody) ? 'json' : ATools.isJsonp(result.response.rawBody) ? 'jsonp' : 'html';
+                        _.assign(resMime, {
+                            ext: ext,
+                            mime: mime.getType(ext) || 'application/jsonp'
+                        })
+                    }
+
+                    _.assign(result.response, {
+                        fitForShow: 'Monaco'
                     })
                 }
             }
+        } catch (e) { }
 
-            res.header = header;
+        _.assign(result.response, {
+            resMime
+        })
+
+        // 缓存文件名
+        if (!_.isEmpty(_.get(process, 'versions.electron'))) {
+            let fileName: any = _.get(this.getCaseInsensitive(_.get(response, 'headers') || {}, 'content-disposition'), 'parameters.filename')
+
+            try {
+                if (_.isString(fileName)) {
+                    fileName = decodeURIComponent(fileName)
+                } else {
+                    fileName = `${target_id}.${_.get(result, 'response.resMime.ext')}`
+                }
+            } catch (e) { }
+
+            try {
+                fileName = path.join(path.resolve(this.getCachePath()), fileName)
+                fs.writeFileSync(fileName, _.get(response, 'body'));
+
+                _.assign(result.response, {
+                    filename: fileName
+                })
+            } catch (e) { }
         }
 
-        return res;
+        // 重置响应内容
+        _.set(result, 'response.raw.type', _.get(result, 'response.resMime.ext'));
+
+        if (_.get(result, 'response.fitForShow') != 'Monaco') {
+            _.set(result, 'response.rawBody', '');
+            _.set(result, 'response.raw.responseText', '');
+        }
+
+        return new Promise((resolve) => {
+            resolve(result)
+        })
     }
 
     // 取消发送
     abort() {
         try {
-            if (_.isObject(this.requestLink) && _.isFunction(this.requestLink.abort)) {
-                this.requestLink.abort();
+            if (_.isObject(this.requestLink) && _.isFunction(this.requestLink.cancel)) {
+                this.requestLink.cancel();
             }
         } catch (e) { }
     }
 
     // 发送
-    request(target: any, extra_headers = {}, extra_opts = {}) {
-        this.target_id = target.target_id;
-        return new Promise((reslove, reject) => {
-            // // 配置项
-            // this.https = opts.https ?? { // 证书相关
-            //     "rejectUnauthorized": -1, // 忽略错误证书 1 -1
-            //     "certificateAuthority":'', // ca证书地址
-            //     "certificate": '', // 客户端证书地址
-            //     "key":'', //客户端证书私钥文件地址
-            //     "pfx":'', // pfx 证书地址
-            //     "passphrase": '' // 私钥密码
-            // };
-            // this.proxy = opts.proxy ?? {};
-            // this.proxyAuth = opts.proxyAuth ?? 'username:password';
-            try {
-                const that = this;
-                const Validator = require('jsonschema').validate;
-                that.requestloop++;
+    async request(target: any, extra_headers: any) {
+        // 开始重写发送逻辑
+        const that: any = this;
 
-                if (!Validator(target, that.jsonschema).valid) {
-                    reject(that.ConvertResult('error', '错误的JSON数据格式'));
-                } else {
+        return new Promise(async (reslove, reject) => {
+            if (!Validator(target, that.jsonschema).valid) {
+                console.error({
+                    target,
+                    status: 'error'
+                })
+                reject(that.ConvertResult('error', '错误的请求数据格式，请联系 Apipost 技术人员协助处理。'));
+                // 改造 ConvertResult 捕获错误数据写到日志
+            } else {
+                // 请求URL的对象
+                const request_urls: any = new UrlParse(_.get(target, 'request.url'));
+                if (_.isEmpty(request_urls?.port)) {
+                    _.assign(request_urls, {
+                        port: request_urls?.protocol == 'https:' ? 443 : 80
+                    })
+                }
 
-                    if (target.request.auth.type == 'ntlm') {
-                        Object.assign(extra_opts, { forever: true });
+                // 获取认证请求头
+                const authHeaders: any = {}
+                that.createAuthHeaders(authHeaders, target);
+
+                // 初始化请求配置
+                const options = {
+                    throwHttpErrors: false,
+                    method: _.get(target, 'method') || 'GET',
+                    allowGetBody: true,
+                    headers: { ...authHeaders },
+                    responseType: "buffer",
+                    ignoreInvalidCookies: true,
+                    decompress: true,
+                    http2: false,
+                    // 以下为重试设置
+                    retry: 0,
+                    // 以下为重定向设置
+                    followRedirect: false,
+                    methodRewriting: false,
+                    maxRedirects: 10
+                }
+
+                // 设置超时时间
+                if (parseInt(_.get(that.option, 'timeout')) > 0) {
+                    _.assign(options, {
+                        timeout: parseInt(_.get(that.option, 'timeout'))
+                    })
+                }
+
+                // 是否开启重定向
+                if (parseInt(_.get(that.option, 'followRedirect')) > 0) {
+                    _.assign(options, {
+                        followRedirect: true
+                    })
+
+                    if (parseInt(_.get(that.option, 'methodRewriting')) > 0) {
+                        _.assign(options, {
+                            methodRewriting: true
+                        })
                     }
 
-                    //fix bug for 7.0.8
-                    let uri: any = target.request.url;
-
-                    try {
-                        //需要截取出需要encode部分，只对需要部分encode，防止重复encode
-                        uri = encodeURI2(target.request.url);
-                    } catch (e) { }
-
-                    // 获取发送参数
-                    let options: any = {
-                        // 拓展部分(固定) +complated
-                        "encoding": null, // 响应结果统一为 Buffer
-                        "verbose": !0, // 响应包含更多底层信息，如响应网络请求信息等
-                        "time": !0, // 响应包含时间信息，此项 和 verbose 会有部分功能重叠
-                        "followRedirect": !1,
-                        // "followAllRedirects":!0,
-                        // "maxRedirects":15,
-                        "timeout": that.timeout, // 请求超时时间
-                        "brotli": !0, // 请求 Brotli 压缩内容编码
-                        "gzip": !0, // 请求 gzip 压缩内容编码
-                        "useQuerystring": !0,
-                        // "allowContentTypeOverride": !0,
-
-                        // 请求URL 相关 +complated
-                        "uri": uri, // 接口请求的完整路径或者相对路径（最终发送url = baseUrl + uri）
-                        // "baseUrl": "https://go.apipost.cn/", // 前置url，可以用此项决定环境前置URL
-
-                        // query 相关+complated
-                        qs: that.formatQueries(target.request.query.parameter), // 此项会覆盖URL中的已有值
-
-                        // "statusMessageEncoding":"utf8",
-
-                        // 基本设置 +complated
-                        "method": target.method, //请求方式，默认GET
-
-                        // 请求Body（仅用于获取）
-                        "_requestBody": this.formatDisplayRequestBodys(target),
-
-                        // header头相关 +complated
-                        "headers": {
-                            "User-Agent": `ApipostRequest/` + that.version + ` (https://www.apipost.cn)`,
-                            ...this.formatRequestHeaders(target.request.header.parameter, target.request.body.mode),
-                            ...this.createAuthHeaders(target),
-                            ...extra_headers
-
-                        }, // 请求头, kv 对象格式
-
-                        // 证书相关
-                        "agentOptions": {},
-
-                        // SSL 证书相关 +complated
-                        'strictSSL': !!that.strictSSL, // 布尔值，是否强制要求SSL证书有效 1(true) 强制 !1(false) 非强制
-
-                        // body 相关+complated
-                        ...this.formatRequestBodys(target),
-
-                        // 其他自定义
-                        ...extra_opts
-
-                    }
-
-                    //#region 代理
-                    if (_.isString(this.proxy) && this.proxy.length > 0) {
-                        this.proxy = ATools.completionHttpProtocol(this.proxy);
-                        options.proxy = this.proxy;
-                    }
-                    if (_.isString(this.proxyAuth) && this.proxyAuth.length > 0) {
-                        options.headers['Proxy-Authorization'] = this.proxyAuth;
-                    }
-                    //#endregion
-
-                    //#region 证书
-                    if (_.isObject(this.https)) {
-                        // ca 证书
-                        if (this.https.hasOwnProperty('certificateAuthority') && _.isString(this.https.certificateAuthority) && this.https.certificateAuthority.length > 0) {
-                            try {
-                                fs.accessSync(this.https.certificateAuthority);
-                                let ca_pem = fs.readFileSync(this.https.certificateAuthority)
-                                options.agentOptions['ca'] = ca_pem;
-                            } catch (err) {
-                                if (isBase64(this.https.certificateAuthority), { allowMime: true }) {
-                                    options.agentOptions['ca'] = Base64.atob(this.https.certificateAuthority);
-                                }
-                            }
-                        }
-                        // 客户端证书
-                        if (this.https.hasOwnProperty('certificate') && _.isString(this.https.certificate) && this.https.certificate.length > 0) {
-                            try {
-                                fs.accessSync(this.https.certificate);
-                                let ca_pem = fs.readFileSync(this.https.certificate)
-                                options.agentOptions['cert'] = ca_pem;
-                            } catch (err) {
-                                if (isBase64(this.https.certificate), { allowMime: true }) {
-                                    options.agentOptions['cert'] = Base64.atob(this.https.certificate);
-                                }
-                            }
-                            // pfx证书
-                        } else if (this.https.hasOwnProperty('pfx') && _.isString(this.https.pfx) && this.https.pfx.length > 0) {
-                            try {
-                                fs.accessSync(this.https.pfx);
-                                let ca_pem = fs.readFileSync(this.https.pfx)
-                                options.agentOptions['pfx'] = ca_pem;
-                            } catch (err) {
-                                if (isBase64(this.https.pfx), { allowMime: true }) {
-                                    options.agentOptions['pfx'] = Base64.atob(this.https.pfx);
-                                }
-                            }
-                        }
-                        // 证书key文件
-                        if (this.https.hasOwnProperty('key') && _.isString(this.https.key) && this.https.key.length > 0) {
-                            try {
-                                fs.accessSync(this.https.key);
-                                let ca_pem = fs.readFileSync(this.https.key)
-                                options.agentOptions['key'] = ca_pem;
-                            } catch (err) {
-                                if (isBase64(this.https.key), { allowMime: true }) {
-                                    options.agentOptions['key'] = Base64.atob(this.https.key);
-                                }
-                            }
-                        }
-                        // 证书密码
-                        options.agentOptions['passphrase'] = this.https?.passphrase || '';
-                    }
-                    //#endregion
-
-                    // 发送并返回响应
-                    const r = that.requestLink = request(options, async function (error: any, response: any, body: any) {
-                        if (error) {
-                            reject(that.ConvertResult('error', error.toString()));
-                        } else {
-                            let _headers: any = [];
-
-                            if (_.isObject(response.request.headers)) {
-                                for (let _key in response.request.headers) {
-                                    _headers.push({
-                                        key: _key,
-                                        value: response.request.headers[_key]
-                                    })
-                                }
-                            }
-
-                            let _request: any = {
-                                header: _headers
-                            };
-
-                            // fix bug for 7.0.8
-                            // fix bug for 7.1.16
-                            let _request_url = _.get(response, 'request.uri.href');
-
-                            if (!_.isString(_request_url)) {
-                                _request_url = options.uri;
-                            }
-
-                            let _request_uris: any = {};
-                            try {
-                                _request_uris = new UrlParse(_request_url);
-                            } catch (e) {
-                                _request_uris = _.cloneDeep(JSON5.parse(JSON5.stringify(urlNode.parse(_request_url))));
-                            }
-
-                            if (_.isObject(response.request)) {
-                                _request = {
-                                    url: _request_url,// fix bug for 7.0.8
-                                    uri: _request_uris,
-                                    method: response.request.method,
-                                    timeout: response.request.timeout,
-                                    // qs:response.request.qs,
-                                    contentType: response.request.headers['content-type'] ?? 'none',
-                                    header: _headers,
-                                    proxy: response.request.proxy,
-                                    request_headers: response.request.headers,
-                                    request_bodys: response.request['_requestBody'].request_bodys,
-                                    body: response.request['_requestBody'].raw
-                                };
-                            }
-
-                            // 重定向的情况递归
-                            if (that.followRedirect > 0 && that.requestloop < that.maxrequstloop) {
-                                if (response.caseless.has('location') === 'location' && _.inRange(response.statusCode, 300, 399)) { // 3xx  重定向
-                                    let loopTarget = _.cloneDeep(target);
-                                    loopTarget.url = loopTarget.request.url = response.caseless.get('location');
-
-                                    // fix bug for 7.0.8
-                                    if (_.isString(_request_uris?.origin) && !_.startsWith(_.toLower(loopTarget.url), 'https://') && !_.startsWith(_.toLower(loopTarget.url), 'http://')) {
-                                        loopTarget.url = loopTarget.request.url = urljoins(_request_uris?.origin, loopTarget.url);
-                                    }
-
-                                    that.request(loopTarget).then(res => {
-                                        reslove(res)
-                                    }).catch(e => {
-                                        reject(e)
-                                    })
-                                } else if (response.caseless.has('www-authenticate') === 'www-authenticate') { // http auth
-                                    let loopTarget = _.cloneDeep(target);
-                                    //fix bug
-                                    try {
-                                        let parsed = new parsers.WWW_Authenticate(response.caseless.get('www-authenticate'));
-
-                                        if (parsed.scheme == 'Digest') { // Digest
-                                            Object.assign(loopTarget.request.auth.digest, parsed.parms);
-                                            that.request(loopTarget).then(res => {
-                                                reslove(res)
-                                            }).catch(e => {
-                                                reject(e)
-                                            });
-                                        } else if (loopTarget.request.auth.type == 'ntlm') {
-                                            loopTarget.request.auth.type == 'ntlm_close';
-                                            Object.assign(loopTarget.request.auth.ntlm, {
-                                                type2msg: ntlm.parseType2Message(response.caseless.get('www-authenticate')),
-
-                                            });
-                                            that.request(loopTarget).then(res => {
-                                                reslove(res)
-                                            }).catch(e => {
-                                                reject(e)
-                                            });
-                                        } else {
-                                            reslove(that.ConvertResult('success', 'success', {
-                                                request: _request,
-                                                response: await that.formatResponseData(error, response, body)
-                                            }))
-                                        }
-                                    } catch (e) {
-                                        reslove(that.ConvertResult('success', 'success', {
-                                            request: _request,
-                                            response: await that.formatResponseData(error, response, body)
-                                        }))
-                                    }
-                                } else {
-                                    reslove(that.ConvertResult('success', 'success', {
-                                        request: _request,
-                                        response: await that.formatResponseData(error, response, body)
-                                    }))
-                                }
-                            } else {
-                                reslove(that.ConvertResult('success', 'success', {
-                                    request: _request,
-                                    response: await that.formatResponseData(error, response, body)
-                                }))
-                            }
-                        }
-                    });
-
-                    if (target?.request?.body?.mode === 'form-data' && !that.isEmptyBodyData(target?.request?.body?.parameter)) {
-                        that.formatFormDataBodys(r.form(), target.request.body.parameter);
+                    if (parseInt(_.get(that.option, 'maxrequstloop')) > 0) {
+                        _.assign(options, {
+                            maxRedirects: parseInt(_.get(that.option, 'maxrequstloop'))
+                        })
                     }
                 }
-            } catch (e) {
-                reject(this.ConvertResult('error', String(e)))
+
+                // 设置开启 http2
+                if (_.get(that.option, 'http2Enebled') > 0) {
+                    _.assign(options, {
+                        http2: true
+                    })
+                }
+
+                // 设置安全证书
+                const https: any = {
+                    rejectUnauthorized: false
+                };
+
+                // ca 证书
+                if (_.get(that.option, 'ca_cert.open') > 0) {
+                    let cacert_path = _.get(that.option, 'ca_cert.path');
+                    if (_.isString(cacert_path) && !_.isEmpty(cacert_path)) {
+                        try {
+                            fs.accessSync(cacert_path)
+
+                            _.assign(https, {
+                                certificateAuthority: fs.readFileSync(cacert_path)
+                            })
+
+                        } catch (e) { }
+                    }
+                }
+
+                // 客户端证书
+                try {
+                    if (_.isObject(_.get(that.option, 'client_cert'))) {
+                        let cert: any = _.find(_.get(that.option, 'client_cert'), (item: any) => {
+                            let cert_urls: any = new UrlParse(item?.HOST)
+
+                            if (request_urls.protocol == 'http://' && request_urls.port == '') {
+                                request_urls.port = 80;
+                            }
+
+                            if (cert_urls.protocol == 'http://' && cert_urls.port == '') {
+                                cert_urls.port = 80;
+                            }
+
+                            if (request_urls.protocol == 'https://' && request_urls.port == '') {
+                                request_urls.port = 443;
+                            }
+
+                            if (cert_urls.protocol == 'https://' && cert_urls.port == '') {
+                                cert_urls.port = 443;
+                            }
+
+                            return request_urls.protocol == cert_urls.protocol && request_urls.hostname == cert_urls.hostname && request_urls.port == cert_urls.port
+                        });
+
+                        if (_.isObject(cert) && !_.isEmpty(cert)) {
+                            _.forEach({ key: "KEY", pfx: "PFX", certificate: "CRT" }, function (cp: any, key: any) {
+                                let _path: any = _.get(cert, `${cp}.FILE_URL`);
+
+                                if (_.isString(_path) && !_.isEmpty(_path)) {
+                                    try {
+                                        fs.accessSync(_path)
+                                        https[key] = fs.readFileSync(_path)
+
+                                    } catch (e) { }
+                                }
+                            });
+
+                            let passphrase: any = _.get(cert, 'PASSWORD');
+
+                            if (_.isString(passphrase) && !_.isEmpty(passphrase)) {
+                                _.assign(https, {
+                                    passphrase
+                                })
+                            }
+                        }
+                    }
+                } catch (e) { }
+
+                _.assign(options, {
+                    https
+                })
+
+                // 当请求不是http2类型时，设置代理。http2 暂时不支持代理。
+                if (options?.http2 == false) {
+                    let proxy: any = {}, host: any = '', port: any = 0;
+
+                    if (_.get(that.option, 'proxy.type') == 1) { // 自定义代理
+                        let match: any = _.get(that.option, 'proxy.auth.host').match(/(([^:]+):(\d+))/);
+
+                        if (_.isArray(match) && parseInt(match[3], 10) > 0) {
+                            host = match[2];
+                            port = parseInt(match[3]);
+                        }
+                    } else if (_.get(that.option, 'proxy.type') == -1) { // 获取系统代理
+                        let no_proxy: any = _.isString(_.get(process, 'env.NO_PROXY')) && _.get(that.option, 'proxy.envfirst') > 0 ? String(_.get(process, 'env.NO_PROXY')).split(",") : []
+
+                        // NO_PROXY 未设置或者 当前host 不在NO_PROXY
+                        if (_.isEmpty(no_proxy) || _.isUndefined(_.find(no_proxy, function (o: any) {
+                            return minimatch(_.toLower(request_urls?.host), (o))
+                        }))) {
+                            if (_.get(that.option, 'proxy.envfirst') > 0 || _.isEmpty(_.get(process, 'versions.electron'))) {
+                                const env_proxy: any = String(request_urls?.protocol == 'https:' ? _.get(process, 'env.HTTPS_PROXY') : _.get(process, 'env.HTTP_PROXY'));
+                                if (!_.isEmpty(env_proxy)) {
+                                    let env_proxy_parse: any = new UrlParse(env_proxy);
+                                    host = env_proxy_parse?.hostname || '';
+                                    port = parseInt(env_proxy_parse?.port, 10) > 0 ? parseInt(env_proxy_parse?.port, 10) : 0;
+                                }
+                            } else if (!_.isEmpty(_.get(process, 'versions.electron'))) {
+                                try {
+                                    let value: any = await require('electron').session.defaultSession.resolveProxy(_.get(target, 'request.url'));
+                                    let match: any = value.match(/PROXY (([^:]+):(\d+))/);
+
+                                    if (_.isObject(match) && _.isString(match[2]) && !_.isEmpty(match[2]) && parseInt(match[3], 10) > 0) {
+                                        host = match[2];
+                                        port = parseInt(match[3], 10)
+                                    }
+                                } catch (e) { }
+                            }
+                        }
+                    }
+
+                    if (!_.isEmpty(host) && port > 0) {
+                        _.assign(proxy, {
+                            host,
+                            port
+                        })
+
+                        if (_.get(that.option, 'proxy.auth.authenticate') > 0) {
+                            if (_.get(that.option, 'proxy.auth.username') != '') {
+                                _.assign(proxy, {
+                                    proxyAuth: `${_.get(that.option, 'proxy.auth.username')}:${_.get(that.option, 'proxy.auth.password')}`
+                                })
+                            }
+                        }
+
+                        if (request_urls?.protocol == 'https:') {
+                            _.assign(options, {
+                                agent: {
+                                    https: tunnel.httpsOverHttp({
+                                        proxy
+                                    })
+                                }
+                            })
+                        } else {
+                            _.assign(options, {
+                                agent: {
+                                    http: tunnel.httpsOverHttp({
+                                        proxy
+                                    })
+                                }
+                            })
+                        }
+                    }
+                }
+
+                // 设置 请求query
+                const searchParams: any = {};
+                _.forEach(_.get(target, 'request.query.parameter'), (item: any) => {
+                    if (item.is_checked > 0 && !_.isEmpty(item.key)) {
+                        searchParams[item.key] = item.value;
+                    }
+                })
+
+                if (!_.isEmpty(searchParams)) {
+                    _.assign(options, {
+                        searchParams
+                    })
+                }
+
+                // 设置请求体
+                const formatRequestBodys: any = that.formatRequestBodys(target), requestError: any = _.get(formatRequestBodys, 'error'), requestContentType: any = _.get(formatRequestBodys, 'header'), requestBody: any = _.get(formatRequestBodys, 'body');
+
+                if (!_.isEmpty(requestError)) {
+                    reject(that.ConvertResult('error', `${requestError}`));
+                }
+
+                if (!_.isEmpty(requestContentType)) {
+                    let ctKey: any = _.find(_.keys(options.headers), function (h: any) { return _.toLower(h) == 'content-type'; }) || 'content-type';
+                    _.set(options, `headers.${ctKey}`, requestContentType['content-type'])
+                }
+
+                if (!_.isEmpty(requestBody)) {
+                    _.assign(options, {
+                        body: requestBody
+                    })
+                }
+
+                // hook
+                _.assign(options, {
+                    hooks: {
+                        // 处理添加请求头
+                        beforeRequest: [
+                            (options: any) => {
+                                _.forEach({
+                                    "User-Agent": `ApipostRequest/${module.exports?.version} (https://www.apipost.cn)`,
+                                    ...that.formatRequestHeaders(_.get(target, 'request.header.parameter'), _.get(target, 'request.body.mode')),
+                                    ...extra_headers
+
+                                }, function (value: any, key: any) {
+                                    _.unset(options, `headers.${_.toLower(key)}`)
+                                    that.setCaseInsensitive(options, `headers.${key}`, value)
+                                });
+                            }
+                        ],
+                        // 处理一些认证逻辑
+                        afterResponse: [
+                            (response: any, retryWithMergedOptions: any) => {
+                                if (Number(response?.statusCode) == 401) {
+                                    const requestOptions = _.get(response, 'request.options');
+                                    const wwwAuthenticate = that.getCaseInsensitive(_.get(response, 'headers'), 'www-authenticate');
+
+                                    if (_.isString(wwwAuthenticate) && wwwAuthenticate != '') {
+                                        try {
+                                            const init_parsed = new parsers.WWW_Authenticate(that.getCaseInsensitive(_.get(response, 'request.options.headers'), 'authorization') || '');
+                                            const parsed = new parsers.WWW_Authenticate(wwwAuthenticate);
+                                            const fullUri = request_urls.href.substr(request_urls.origin.length);
+
+                                            if (_.toLower(parsed?.scheme) == 'digest') {
+                                                that.setCaseInsensitive(requestOptions, 'headers.authorization', `${that.getDigestAuthString(target, options?.method, fullUri, _.assign(_.get(target, 'request.auth.digest') || {}, init_parsed?.parms, parsed?.parms))
+                                                    }`);
+
+                                                return retryWithMergedOptions(requestOptions)
+                                            } else if (_.toLower(parsed?.scheme) == 'ntlm' || wwwAuthenticate.includes('NTLM')) {
+                                                that.setCaseInsensitive(requestOptions, 'headers.authorization', `${that.getNTLMAuthString(target, ntlm.parseType2Message(wwwAuthenticate), _.get(target, 'request.auth.ntlm'))
+                                                    }`);
+
+                                                return retryWithMergedOptions(requestOptions)
+                                            }
+                                        } catch (e) { }
+                                    }
+                                }
+
+                                return response;
+                            }
+                        ]
+                    }
+                })
+
+                // 实际发送
+                const request_urls_clone = _.cloneDeep(request_urls);
+                request_urls_clone.set("query", '');
+                request_urls_clone.set("hash", '');
+
+                // 发送
+                that.requestLink = got(request_urls_clone.toString(), options).then(async (response: any) => {
+                    reslove(that.ConvertResult('success', 'success', await that.formatResponseData(null, response, target)))
+                }).catch(async (error: any) => {
+                    reject(that.ConvertResult('error', `${String(error)}[${error?.code}]`, await that.formatResponseData(`${String(error)}[${error?.code}]`, error.response, target)))
+                });
             }
         })
-    }
+        // 完成重写发送逻辑
+    };
 }
 
 export default ApipostRequest;
