@@ -28,6 +28,7 @@ const FileType = require('file-type'),
     Validator = require('jsonschema').validate,
     pkginfo = require('pkginfo')(module),
     mime = require('mime'),
+    { getObjFromRawHeaders } = require("rawheaders2obj"),
     FormData = require('form-data');
 // Apipost 发送模块
 class ApipostRequest {
@@ -795,9 +796,9 @@ class ApipostRequest {
                 "status": _.get(response, 'statusMessage') || 'OK',
                 "code": _.get(response, 'statusCode') || 200,
                 "timingPhases": _.get(response, 'timings.phases') || {},
-                "resHeaders": _.get(response, 'headers') || {},
-                "headers": _.get(response, 'headers') || {},
-                "header": _.map(_.get(response, 'headers'), (value: any, key: any) => ({ key, value })) || [],
+                "resHeaders": getObjFromRawHeaders(_.get(response, 'headers') || []) || {},
+                "headers": getObjFromRawHeaders(_.get(response, 'headers') || []) || {},
+                "header": _.map(getObjFromRawHeaders(_.get(response, 'headers') || []) || {}, (value: any, key: any) => ({ key, value })) || [],
                 "rawCookies": [],
                 "resCookies": [],
                 "cookies": {},
