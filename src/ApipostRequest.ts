@@ -523,7 +523,7 @@ class ApipostRequest {
                                 };
                             }
                         } else if (filePath != '') {
-                            const binaryBuffer = fs.readFileSync(filePath);
+                            const binaryBuffer = fs.createReadStream(filePath); // readFileSync
 
                             if (_.isBuffer(binaryBuffer)) {
                                 _body = {
