@@ -522,8 +522,8 @@ class ApipostRequest {
                                     }
                                 };
                             }
-                        } else if (filePath != '') {
-                            const binaryBuffer = fs.createReadStream(filePath); // readFileSync
+                        } else if (_.isString(filePath) && filePath != '') {
+                            const binaryBuffer = fs.createReadStream(filePath);
 
                             if (_.isBuffer(binaryBuffer)) {
                                 _body = {
