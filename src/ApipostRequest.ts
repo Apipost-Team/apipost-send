@@ -400,9 +400,9 @@ class ApipostRequest {
                             let _file_names = typeof item.filename == 'string' ? item.filename.split('|') : [];
                             let _i = 0;
                             item.fileBase64.forEach((base64: any) => {
-                                let fileBase64 = (isBase64(base64, { allowMime: true }) || base64.indexOf('base64,') > 0) ? base64 : (isBase64(item.value, { allowMime: true }) ? item.value : '')
+                                let fileBase64 = (isBase64(base64, { allowEmpty: false, allowMime: true }) || base64.indexOf('base64,') > 0) ? base64 : (isBase64(item.value, { allowEmpty: false, allowMime: true }) ? item.value : '')
 
-                                if (isBase64(fileBase64, { allowMime: true }) || base64.indexOf('base64,') > 0) { // 云端
+                                if (isBase64(fileBase64, { allowEmpty: false, allowMime: true }) || base64.indexOf('base64,') > 0) { // 云端
                                     let _mime: any = that.getBase64Mime(fileBase64);
                                     let _temp_file: any = path.join(path.resolve(that.getCachePath()), `cache_${CryptoJS.MD5(fileBase64).toString()}`);
 
@@ -513,7 +513,7 @@ class ApipostRequest {
 
                     try {
                         if (base64Data != '' && base64Data.indexOf('base64,') > 0) {
-                            if (isBase64(base64Data, { allowMime: true })) {
+                            if (isBase64(base64Data, { allowEmpty: false, allowMime: true })) {
 
                                 _body = {
                                     body: Buffer.from(base64Data.replace(/^data:(.+?);base64,/, ''), 'base64'),
@@ -1041,7 +1041,7 @@ class ApipostRequest {
                     let cacert_path = _.get(that.option, 'ca_cert.path');
                     let cacert_base64 = _.get(that.option, 'ca_cert.base64');
 
-                    if (isBase64(cacert_base64)) {
+                    if (isBase64(cacert_base64, { allowEmpty: false })) {
                         _.assign(https, {
                             certificateAuthority: Buffer.from(cacert_base64, 'base64')
                         })
@@ -1089,7 +1089,7 @@ class ApipostRequest {
                                 let _path: any = _.get(cert, `${cp}.FILE_URL`);
                                 let _base64: any = _.get(cert, `${cp}.base64`);
 
-                                if (isBase64(_base64)) {
+                                if (isBase64(_base64, { allowEmpty: false })) {
                                     https[key] = Buffer.from(_base64, 'base64')
                                 } else {
                                     if (_.isString(_path) && !_.isEmpty(_path)) {
