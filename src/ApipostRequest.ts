@@ -1024,7 +1024,8 @@ class ApipostRequest {
                 }
 
                 // 设置开启 http2
-                if (_.get(that.option, 'http2Enebled') > 0) {
+                const protocol = _.get(target, 'request.protocol')
+                if (protocol == 'http/2') {
                     _.assign(options, {
                         http2: true
                     })
@@ -1038,15 +1039,23 @@ class ApipostRequest {
                 // ca 证书
                 if (_.get(that.option, 'ca_cert.open') > 0) {
                     let cacert_path = _.get(that.option, 'ca_cert.path');
-                    if (_.isString(cacert_path) && !_.isEmpty(cacert_path)) {
-                        try {
-                            fs.accessSync(cacert_path)
+                    let cacert_base64 = _.get(that.option, 'ca_cert.base64');
 
-                            _.assign(https, {
-                                certificateAuthority: fs.readFileSync(cacert_path)
-                            })
+                    if (isBase64(cacert_base64)) {
+                        _.assign(https, {
+                            certificateAuthority: Buffer.from(cacert_base64, 'base64')
+                        })
+                    } else {
+                        if (_.isString(cacert_path) && !_.isEmpty(cacert_path)) {
+                            try {
+                                fs.accessSync(cacert_path)
 
-                        } catch (e) { }
+                                _.assign(https, {
+                                    certificateAuthority: fs.readFileSync(cacert_path)
+                                })
+
+                            } catch (e) { }
+                        }
                     }
                 }
 
@@ -1078,13 +1087,18 @@ class ApipostRequest {
                         if (_.isObject(cert) && !_.isEmpty(cert)) {
                             _.forEach({ key: "KEY", pfx: "PFX", certificate: "CRT" }, function (cp: any, key: any) {
                                 let _path: any = _.get(cert, `${cp}.FILE_URL`);
+                                let _base64: any = _.get(cert, `${cp}.base64`);
 
-                                if (_.isString(_path) && !_.isEmpty(_path)) {
-                                    try {
-                                        fs.accessSync(_path)
-                                        https[key] = fs.readFileSync(_path)
+                                if (isBase64(_base64)) {
+                                    https[key] = Buffer.from(_base64, 'base64')
+                                } else {
+                                    if (_.isString(_path) && !_.isEmpty(_path)) {
+                                        try {
+                                            fs.accessSync(_path)
+                                            https[key] = fs.readFileSync(_path)
 
-                                    } catch (e) { }
+                                        } catch (e) { }
+                                    }
                                 }
                             });
 
@@ -1114,12 +1128,44 @@ class ApipostRequest {
                             host = match[2];
                             port = parseInt(match[3]);
                         }
+
+                        // 检查host 是不是在 bypass 里面
+                        let bypass = _.get(that.option, 'proxy.bypass');
+
+                        if (_.isString(bypass)) {
+                            bypass = bypass.split(',')
+                        }
+
+                        let bypassMatch = _.find(bypass, function (o: any) {
+                            return minimatch(_.toLower(request_urls?.host), o)
+                        })
+
+                        if (bypassMatch) {
+                            host = '';
+                            port = 0;
+                        } else {
+                            // 检查当前协议是否匹配 protocol
+                            let protocols = _.get(that.option, 'proxy.auth.protocol');
+
+                            if (_.isString(protocols)) {
+                                protocols = protocols.split(",")
+                            }
+
+                            let protocolMatch = _.find(protocols, function (o: any) {
+                                return _.toLower(request_urls?.protocol) == `${o}:`
+                            })
+
+                            if (!protocolMatch) {
+                                host = '';
+                                port = 0;
+                            }
+                        }
                     } else if (_.get(that.option, 'proxy.type') == -1) { // 获取系统代理
                         let no_proxy: any = _.isString(_.get(process, 'env.NO_PROXY')) && _.get(that.option, 'proxy.envfirst') > 0 ? String(_.get(process, 'env.NO_PROXY')).split(",") : []
 
                         // NO_PROXY 未设置或者 当前host 不在NO_PROXY
                         if (_.isEmpty(no_proxy) || _.isUndefined(_.find(no_proxy, function (o: any) {
-                            return minimatch(_.toLower(request_urls?.host), (o))
+                            return minimatch(_.toLower(request_urls?.host), o)
                         }))) {
                             if (_.get(that.option, 'proxy.envfirst') > 0 || _.isEmpty(_.get(process, 'versions.electron'))) {
                                 const env_proxy: any = String(request_urls?.protocol == 'https:' ? _.get(process, 'env.HTTPS_PROXY') : _.get(process, 'env.HTTP_PROXY'));
