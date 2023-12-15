@@ -1039,7 +1039,7 @@ class ApipostRequest {
                 // ca 证书
                 if (_.get(that.option, 'ca_cert.open') > 0) {
                     let cacert_path = _.get(that.option, 'ca_cert.path');
-                    let cacert_base64 = _.get(that.option, 'ca_cert.base64');
+                    let cacert_base64 = String(_.get(that.option, 'ca_cert.base64')).replace(/^data:.*?;base64,/, '');
 
                     if (isBase64(cacert_base64, { allowEmpty: false })) {
                         _.assign(https, {
