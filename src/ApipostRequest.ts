@@ -1145,7 +1145,7 @@ class ApipostRequest {
                             port = 0;
                         } else {
                             // 检查当前协议是否匹配 protocol
-                            let protocols = _.get(that.option, 'proxy.auth.protocol');
+                            let protocols = _.get(that.option, 'proxy.protocols');
 
                             if (_.isString(protocols)) {
                                 protocols = protocols.split(",")
