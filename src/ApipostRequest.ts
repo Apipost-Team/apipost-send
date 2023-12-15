@@ -1087,7 +1087,7 @@ class ApipostRequest {
                         if (_.isObject(cert) && !_.isEmpty(cert)) {
                             _.forEach({ key: "KEY", pfx: "PFX", certificate: "CRT" }, function (cp: any, key: any) {
                                 let _path: any = _.get(cert, `${cp}.FILE_URL`);
-                                let _base64: any = _.get(cert, `${cp}.base64`);
+                                let _base64: any = _.get(cert, `${cp}.FILE_BASE64`).replace(/^data:.*?;base64,/, '');
 
                                 if (isBase64(_base64, { allowEmpty: false })) {
                                     https[key] = Buffer.from(_base64, 'base64')
