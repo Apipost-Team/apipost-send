@@ -1213,7 +1213,7 @@ class ApipostRequest {
                         } else {
                             _.assign(options, {
                                 agent: {
-                                    http: tunnel.httpsOverHttp({
+                                    http: tunnel.httpOverHttp({
                                         proxy
                                     })
                                 }
