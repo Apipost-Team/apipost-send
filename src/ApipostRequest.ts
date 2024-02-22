@@ -960,12 +960,18 @@ class ApipostRequest {
         const that: any = this;
 
         return new Promise(async (reslove, reject) => {
-            if (!Validator(target, that.jsonschema).valid) {
+            let valid_res:{ valid: boolean , errors:Array<{path:Array<string>, message:string}>} = Validator(target, that.jsonschema);
+            
+            if (!valid_res.valid) {
                 console.error({
                     target,
                     status: 'error'
-                })
-                reject(that.ConvertResult('error', '错误的请求数据格式，请联系 Apipost 技术人员协助处理。'));
+                });
+                let err_msg = "";
+                if (valid_res.errors.length > 0) {
+                    err_msg = valid_res.errors[0].path.join(".") + "->" + valid_res.errors[0].message;
+                }
+                reject(that.ConvertResult('error', `错误的请求数据格式，错误详情:${err_msg}`));
                 // 改造 ConvertResult 捕获错误数据写到日志
             } else {
                 // 请求URL的对象
