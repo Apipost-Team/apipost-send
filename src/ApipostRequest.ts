@@ -974,6 +974,12 @@ class ApipostRequest {
                 reject(that.ConvertResult('error', `错误的请求数据格式，错误详情:${err_msg}`));
                 // 改造 ConvertResult 捕获错误数据写到日志
             } else {
+                //支持是否query支持"=", 默认加等号
+                let query_add_equal:number = 1;
+                if (target?.request?.query_add_equal){
+                    query_add_equal = target.request.query_add_equal == 1 ? 1 : -1;
+                }
+
                 // 请求URL的对象
                 const request_urls: any = new UrlParse(_.get(target, 'request.url'));
                 if (_.isEmpty(request_urls?.port)) {
@@ -1229,18 +1235,12 @@ class ApipostRequest {
                 }
 
                 // 设置 请求query
-                const searchParams: any = {};
+                const searchParams: { [key: string]: string } = {};
                 _.forEach(_.get(target, 'request.query.parameter'), (item: any) => {
                     if (item.is_checked > 0 && !_.isEmpty(item.key)) {
                         searchParams[item.key] = item.value;
                     }
                 })
-
-                if (!_.isEmpty(searchParams)) {
-                    _.assign(options, {
-                        searchParams
-                    })
-                }
 
                 // 设置请求体
                 const formatRequestBodys: any = that.formatRequestBodys(target), requestError: any = _.get(formatRequestBodys, 'error'), requestContentType: any = _.get(formatRequestBodys, 'header'), requestBody: any = _.get(formatRequestBodys, 'body');
@@ -1315,9 +1315,34 @@ class ApipostRequest {
                 const request_urls_clone = _.cloneDeep(request_urls);
                 request_urls_clone.set("query", '');
                 request_urls_clone.set("hash", '');
+                //hack for query add equal
+                let got_url = request_urls_clone.toString();
+                if (query_add_equal < 1){
+                    //不使用等号需要特殊处理            
+                    let queryStr:string = "";
+                    if (request_urls.query !== '') {
+                        let queries = qs.parse(request_urls.query.substr(1));
+                        queryStr = qs.stringify(Object.assign(queries, searchParams));
+                    } else if (!_.isEmpty(searchParams)) {
+                        queryStr = qs.stringify(searchParams);
+                    }
+            
+                    if (queryStr){
+                        //空无需"="
+                        queryStr = queryStr.replace(/=\&/g, ''); //替换中间的空等号
+                        queryStr = _.trimEnd(queryStr, '='); //去掉末尾的等号
+                        got_url += "?" + queryStr
+                    }
+                }else{
+                    if (!_.isEmpty(searchParams)) {
+                        _.assign(options, {
+                            searchParams
+                        })
+                    }
+                }
 
                 // 发送
-                that.requestLink = got(request_urls_clone.toString(), options).then(async (response: any) => {
+                that.requestLink = got(got_url, options).then(async (response: any) => {
                     reslove(that.ConvertResult('success', 'success', await that.formatResponseData(null, response, target)))
                 }).catch(async (error: any) => {
                     reject(that.ConvertResult('error', `${String(error)}[${error?.code}]`, await that.formatResponseData(`${String(error)}[${error?.code}]`, error.response, target)))
