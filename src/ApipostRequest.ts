@@ -1006,7 +1006,8 @@ class ApipostRequest {
                     // 以下为重定向设置
                     followRedirect: false,
                     methodRewriting: false,
-                    maxRedirects: 10
+                    maxRedirects: 10,
+                    timeout: 10000,
                 }
 
                 // 设置超时时间
@@ -1036,7 +1037,7 @@ class ApipostRequest {
                 }
 
                 // 设置开启 http2
-                const protocol = _.get(target, 'request.protocol')
+                const protocol = target?.protocol ? target.protocol : _.get(target, 'request.protocol')
                 if (protocol == 'http/2') {
                     _.assign(options, {
                         http2: true
@@ -1340,7 +1341,7 @@ class ApipostRequest {
                         })
                     }
                 }
-
+     
                 // 发送
                 that.requestLink = got(got_url, options).then(async (response: any) => {
                     reslove(that.ConvertResult('success', 'success', await that.formatResponseData(null, response, target)))
