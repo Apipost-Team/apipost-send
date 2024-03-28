@@ -793,8 +793,8 @@ class ApipostRequest {
                         }
                     }
                 },
-                "status": _.get(response, 'statusMessage') || 'OK',
-                "code": _.get(response, 'statusCode') || 200,
+                "status": _.get(response, 'statusMessage') || '', //不存在时为空，not ok
+                "code": _.get(response, 'statusCode') || 0, //不存在时为0，不为200
                 "timingPhases": _.get(response, 'timings.phases') || {},
                 "resHeaders": getObjFromRawHeaders(_.get(response, 'rawHeaders') || []) || {},
                 "headers": getObjFromRawHeaders(_.get(response, 'rawHeaders') || []) || {},
