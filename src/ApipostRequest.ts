@@ -645,7 +645,7 @@ class ApipostRequest {
     }
 
     // 响应时间点
-    resposneAt() {
+    responseAt() {
         var time: any = new Date();
         var h: any = time.getHours();
         h = h < 10 ? '0' + h : h;
@@ -779,12 +779,14 @@ class ApipostRequest {
             },
             response: {}
         }
+        let responseAt = this.responseAt();
         _.assign(result, {
             response: {
                 "target_id": target_id,
                 "responseTime": _.get(response, 'timings.phases.total') || '0.00',
                 "responseSize": _.round((this.getCaseInsensitive(_.get(response, 'headers'), 'content-length') || String(_.get(response, 'body')).length) / 1024, 2),
-                "resposneAt": this.resposneAt(),
+                "resposneAt": responseAt, //兼容旧版本
+                "responseAt": responseAt,
                 "netWork": {
                     "agent": _.get(response, `request.options.agent.${protocol}.proxyOptions`) || null,
                     "address": {

@@ -59,7 +59,7 @@ test('works', async () => {
   };
 
   let result:any = await apipostSend.request(target, {});
-
+  console.log(result);
   expect(result.status).toBe('success');
 
 });
