@@ -385,7 +385,7 @@ class ApipostRequest {
                         options['contentType'] = item.contentType;
                     }
 
-                    if (item.type === 'File') {
+                    if (item.field_type === 'File') {
                         if (_.isArray(item?.value) && item.value.length > 0) {
                             item.value.forEach((path: any) => {
                                 try {
@@ -583,7 +583,7 @@ class ApipostRequest {
                         if (parseInt(item.is_checked) === 1) {
                             _body.request_bodys[item.key] = item.value;
 
-                            if (item.type === 'File') {
+                            if (item.field_type === 'File') {
                                 _raw.push({
                                     key: item.key,
                                     type: 'file',
