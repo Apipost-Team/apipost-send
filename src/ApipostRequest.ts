@@ -962,8 +962,8 @@ class ApipostRequest {
         const that: any = this;
 
         return new Promise(async (reslove, reject) => {
-            let valid_res:{ valid: boolean , errors:Array<{path:Array<string>, message:string}>} = Validator(target, that.jsonschema);
-            
+            let valid_res: { valid: boolean, errors: Array<{ path: Array<string>, message: string }> } = Validator(target, that.jsonschema);
+
             if (!valid_res.valid) {
                 console.error({
                     target,
@@ -977,8 +977,8 @@ class ApipostRequest {
                 // 改造 ConvertResult 捕获错误数据写到日志
             } else {
                 //支持是否query支持"=", 默认加等号
-                let query_add_equal:number = 1;
-                if (target?.request?.query_add_equal){
+                let query_add_equal: number = 1;
+                if (target?.request?.query_add_equal) {
                     query_add_equal = target.request.query_add_equal == 1 ? 1 : -1;
                 }
 
@@ -1080,19 +1080,19 @@ class ApipostRequest {
                         let cert: any = _.find(_.get(that.option, 'client_cert'), (item: any) => {
                             let cert_urls: any = new UrlParse(item?.HOST)
 
-                            if (request_urls.protocol == 'http://' && request_urls.port == '') {
+                            if (request_urls.protocol == 'http://' && _.toInteger(request_urls.port) == 0) {
                                 request_urls.port = 80;
                             }
 
-                            if (cert_urls.protocol == 'http://' && cert_urls.port == '') {
+                            if (cert_urls.protocol == 'http://' && _.toInteger(cert_urls.port) == 0) {
                                 cert_urls.port = 80;
                             }
 
-                            if (request_urls.protocol == 'https://' && request_urls.port == '') {
+                            if (request_urls.protocol == 'https://' && _.toInteger(request_urls.port) == 0) {
                                 request_urls.port = 443;
                             }
 
-                            if (cert_urls.protocol == 'https://' && cert_urls.port == '') {
+                            if (cert_urls.protocol == 'https://' && _.toInteger(cert_urls.port) == 0) {
                                 cert_urls.port = 443;
                             }
 
@@ -1100,9 +1100,9 @@ class ApipostRequest {
                         });
 
                         if (_.isObject(cert) && !_.isEmpty(cert)) {
-                            _.forEach({ key: "KEY", pfx: "PFX", certificate: "CRT" }, function (cp: any, key: any) {
-                                let _path: any = _.get(cert, `${cp}.FILE_URL`);
-                                let _base64: any = String(_.get(cert, `${cp}.FILE_BASE64`)).replace(/^data:.*?;base64,/, '');
+                            _.forEach({ key: "key", pfx: "pfx", certificate: "crt" }, function (cp: any, key: any) {
+                                let _path: any = _.get(cert, `${cp}.file_url`);
+                                let _base64: any = String(_.get(cert, `${cp}.file_base64`)).replace(/^data:.*?;base64,/, '');
 
                                 if (isBase64(_base64, { allowEmpty: false })) {
                                     https[key] = Buffer.from(_base64, 'base64')
@@ -1117,7 +1117,7 @@ class ApipostRequest {
                                 }
                             });
 
-                            let passphrase: any = _.get(cert, 'PASSWORD');
+                            let passphrase: any = _.get(cert, 'password');
 
                             if (_.isString(passphrase) && !_.isEmpty(passphrase)) {
                                 _.assign(https, {
@@ -1320,30 +1320,30 @@ class ApipostRequest {
                 request_urls_clone.set("hash", '');
                 //hack for query add equal
                 let got_url = request_urls_clone.toString();
-                if (query_add_equal < 1){
+                if (query_add_equal < 1) {
                     //不使用等号需要特殊处理            
-                    let queryStr:string = "";
+                    let queryStr: string = "";
                     if (request_urls.query !== '') {
                         let queries = qs.parse(request_urls.query.substr(1));
                         queryStr = qs.stringify(Object.assign(queries, searchParams));
                     } else if (!_.isEmpty(searchParams)) {
                         queryStr = qs.stringify(searchParams);
                     }
-            
-                    if (queryStr){
+
+                    if (queryStr) {
                         //空无需"="
                         queryStr = queryStr.replace(/=\&/g, ''); //替换中间的空等号
                         queryStr = _.trimEnd(queryStr, '='); //去掉末尾的等号
                         got_url += "?" + queryStr
                     }
-                }else{
+                } else {
                     if (!_.isEmpty(searchParams)) {
                         _.assign(options, {
                             searchParams
                         })
                     }
                 }
-     
+
                 // 发送
                 that.requestLink = got(got_url, options).then(async (response: any) => {
                     reslove(that.ConvertResult('success', 'success', await that.formatResponseData(null, response, target)))
